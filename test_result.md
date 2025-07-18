@@ -101,3 +101,182 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: "Test all the backend API endpoints for the TRX mining node website. Focus on authentication endpoints, mining node endpoints, user profile endpoints, referral system endpoints, withdrawal endpoints, and live data endpoints."
+
+backend:
+  - task: "Authentication - User Signup"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "POST /api/auth/signup endpoint tested successfully. Handles user registration with username, password, and optional referral code. Correctly validates duplicate usernames and processes referral codes. Returns appropriate success/error responses."
+
+  - task: "Authentication - User Signin"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "POST /api/auth/signin endpoint tested successfully. Validates user credentials correctly, returns user data on success, and appropriate error messages for invalid credentials."
+
+  - task: "Authentication - Get Current User"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "GET /api/auth/user endpoint tested successfully. Returns mock user data as expected for development environment."
+
+  - task: "Mining Nodes - Get All Nodes"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "GET /api/nodes endpoint tested successfully. Returns all 4 mining nodes with correct structure including id, name, price, storage, mining amount, and duration."
+
+  - task: "Mining Nodes - Purchase Node"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "POST /api/nodes/purchase endpoint tested successfully. Validates node ID and transaction hash, prevents duplicate node purchases, creates user_nodes records, and updates user mining status correctly."
+
+  - task: "User Nodes - Get Active Nodes"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "GET /api/user/nodes endpoint tested successfully. Returns user's active mining nodes with correct structure and data."
+
+  - task: "User Profile - Get Profile with Balances"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "GET /api/user/profile endpoint tested successfully. Returns complete user profile including mineBalance, referralBalance, referralCode, and other user data. Creates initial user with signup bonus if not exists."
+
+  - task: "Referral System - Get User Referrals"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "GET /api/user/referrals endpoint tested successfully. Returns user's referrals with correct structure. Referral system logic working - creates referral records when users signup with referral codes."
+
+  - task: "Withdrawal - Mine Balance Withdrawal"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "POST /api/withdraw endpoint tested successfully for mine balance withdrawals. Correctly enforces minimum withdrawal (25 TRX), validates sufficient balance, requires active mining node, and updates user balance appropriately."
+
+  - task: "Withdrawal - Referral Balance Withdrawal"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "POST /api/withdraw endpoint tested successfully for referral balance withdrawals. Correctly enforces minimum withdrawal (50 TRX), validates sufficient balance, requires Node 4 purchase, and handles withdrawal logic properly."
+
+  - task: "Live Data - Withdrawal History"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "GET /api/withdrawals endpoint tested successfully. Returns mock live withdrawal data with correct structure including username, amount, and timestamp fields."
+
+  - task: "Error Handling and Validation"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "API error handling tested successfully. Returns appropriate 404 for non-existent endpoints, handles malformed JSON requests, and provides proper error messages for validation failures."
+
+  - task: "MongoDB Integration"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "MongoDB integration tested successfully. Data persistence working correctly - users can signup and login, referral records are created, user nodes are stored, and balance updates are persisted properly."
+
+frontend:
+  # Frontend testing not performed as per instructions
+
+metadata:
+  created_by: "testing_agent"
+  version: "1.0"
+  test_sequence: 1
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "All backend API endpoints tested and working"
+  stuck_tasks: []
+  test_all: true
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "testing"
+    message: "Comprehensive backend API testing completed successfully. All 12 backend tasks tested and working correctly. MongoDB integration verified. Referral system logic confirmed working. Mining node purchase and withdrawal flows tested thoroughly. All API endpoints returning correct responses with proper error handling. External URL routing issue identified (502 errors) but internal API functionality is fully operational."
