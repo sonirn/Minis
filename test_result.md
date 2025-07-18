@@ -280,3 +280,5 @@ test_plan:
 agent_communication:
   - agent: "testing"
     message: "Comprehensive backend API testing completed successfully. All 12 backend tasks tested and working correctly. MongoDB integration verified. Referral system logic confirmed working. Mining node purchase and withdrawal flows tested thoroughly. All API endpoints returning correct responses with proper error handling. External URL routing issue identified (502 errors) but internal API functionality is fully operational."
+  - agent: "testing"
+    message: "CRITICAL ISSUE IDENTIFIED: Authentication endpoints are working perfectly internally (localhost:3000/api) but failing externally with 502 Bad Gateway errors. Root cause: Kubernetes ingress routing configuration issue - external URL not properly routing /api requests to Next.js backend service. Backend code and database connections are fully functional. This is an infrastructure/routing issue, not a backend code issue."
