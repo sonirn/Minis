@@ -18,9 +18,11 @@ import {
   Copy,
   CheckCircle,
   Clock,
-  ArrowRight,
   Eye,
-  EyeOff
+  EyeOff,
+  Menu,
+  X,
+  LogOut
 } from 'lucide-react'
 
 export default function App() {
@@ -33,10 +35,13 @@ export default function App() {
   const [referrals, setReferrals] = useState([])
   const [liveWithdrawals, setLiveWithdrawals] = useState([])
   const [showPassword, setShowPassword] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   // Auth states
   const [authMode, setAuthMode] = useState('signin')
   const [authData, setAuthData] = useState({ username: '', password: '', referralCode: '' })
+  const [authError, setAuthError] = useState('')
+  const [authLoading, setAuthLoading] = useState(false)
   
   // Purchase states
   const [selectedNode, setSelectedNode] = useState(null)
@@ -57,7 +62,7 @@ export default function App() {
     // Simulate live withdrawals
     const interval = setInterval(() => {
       fetchLiveWithdrawals()
-    }, 10000)
+    }, 15000)
 
     return () => clearInterval(interval)
   }, [])
@@ -72,10 +77,10 @@ export default function App() {
 
   const checkAuth = async () => {
     try {
-      const response = await fetch('/api/auth/user')
-      if (response.ok) {
-        const data = await response.json()
-        setUser(data.user)
+      // Check if user is stored in localStorage
+      const storedUser = localStorage.getItem('trx_user')
+      if (storedUser) {
+        setUser(JSON.parse(storedUser))
       }
     } catch (error) {
       console.error('Auth check error:', error)
@@ -97,8 +102,15 @@ export default function App() {
   }
 
   const fetchUserProfile = async () => {
+    if (!user) return
+    
     try {
-      const response = await fetch('/api/user/profile')
+      const response = await fetch('/api/user/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id })
+      })
+      
       if (response.ok) {
         const data = await response.json()
         setUserProfile(data.user)
@@ -109,8 +121,15 @@ export default function App() {
   }
 
   const fetchUserNodes = async () => {
+    if (!user) return
+    
     try {
-      const response = await fetch('/api/user/nodes')
+      const response = await fetch('/api/user/nodes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id })
+      })
+      
       if (response.ok) {
         const data = await response.json()
         setUserNodes(data.nodes)
@@ -121,8 +140,15 @@ export default function App() {
   }
 
   const fetchReferrals = async () => {
+    if (!user) return
+    
     try {
-      const response = await fetch('/api/user/referrals')
+      const response = await fetch('/api/user/referrals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id })
+      })
+      
       if (response.ok) {
         const data = await response.json()
         setReferrals(data.referrals)
@@ -146,6 +172,9 @@ export default function App() {
 
   const handleAuth = async (e) => {
     e.preventDefault()
+    setAuthLoading(true)
+    setAuthError('')
+    
     try {
       const endpoint = authMode === 'signup' ? '/api/auth/signup' : '/api/auth/signin'
       const response = await fetch(endpoint, {
@@ -155,16 +184,21 @@ export default function App() {
       })
 
       const data = await response.json()
+      
       if (response.ok) {
         setUser(data.user)
+        localStorage.setItem('trx_user', JSON.stringify(data.user))
         setCurrentPage('home')
+        setAuthData({ username: '', password: '', referralCode: '' })
         alert(data.message)
       } else {
-        alert(data.error)
+        setAuthError(data.error)
       }
     } catch (error) {
       console.error('Auth error:', error)
-      alert('Authentication failed')
+      setAuthError('Network error. Please try again.')
+    } finally {
+      setAuthLoading(false)
     }
   }
 
@@ -180,7 +214,8 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           nodeId: selectedNode.id,
-          transactionHash
+          transactionHash,
+          userId: user.id
         })
       })
 
@@ -213,7 +248,8 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: withdrawType,
-          amount: parseFloat(withdrawAmount)
+          amount: parseFloat(withdrawAmount),
+          userId: user.id
         })
       })
 
@@ -238,16 +274,18 @@ export default function App() {
 
   const signOut = () => {
     setUser(null)
+    localStorage.removeItem('trx_user')
     setCurrentPage('home')
     setUserProfile(null)
     setUserNodes([])
     setReferrals([])
+    setMobileMenuOpen(false)
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 flex items-center justify-center">
-        <div className="text-white text-xl">Loading...</div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-gray-600 text-xl">Loading...</div>
       </div>
     )
   }
@@ -255,88 +293,113 @@ export default function App() {
   // Auth Pages
   if (!user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md bg-white/10 backdrop-blur-md border-white/20">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl font-bold text-white">
-              {authMode === 'signup' ? 'Sign Up' : 'Sign In'}
-            </CardTitle>
-            <p className="text-white/80">
-              {authMode === 'signup' ? 'Create account & get 25 TRX bonus!' : 'Welcome back to MineTRXWith'}
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <form onSubmit={handleAuth} className="space-y-4">
-              <div>
-                <Input
-                  type="text"
-                  placeholder="Username"
-                  value={authData.username}
-                  onChange={(e) => setAuthData({...authData, username: e.target.value})}
-                  className="bg-white/10 border-white/20 text-white placeholder-white/50"
-                  required
-                />
-              </div>
-              
-              <div className="relative">
-                <Input
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Password"
-                  value={authData.password}
-                  onChange={(e) => setAuthData({...authData, password: e.target.value})}
-                  className="bg-white/10 border-white/20 text-white placeholder-white/50 pr-10"
-                  required
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 text-white/50 hover:text-white p-1"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </Button>
-              </div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-gray-900">MineTRXWith</h1>
+            <p className="text-gray-600 mt-2">Professional TRX Mining Platform</p>
+          </div>
 
-              {authMode === 'signup' && (
+          <Card className="shadow-lg">
+            <CardHeader className="text-center">
+              <CardTitle className="text-2xl">
+                {authMode === 'signup' ? 'Create Account' : 'Welcome Back'}
+              </CardTitle>
+              <p className="text-gray-600 text-sm">
+                {authMode === 'signup' ? 'Join thousands of miners earning TRX' : 'Sign in to your mining account'}
+              </p>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleAuth} className="space-y-4">
                 <div>
+                  <label className="text-sm font-medium text-gray-700 mb-2 block">Username</label>
                   <Input
                     type="text"
-                    placeholder="Referral Code (Optional)"
-                    value={authData.referralCode}
-                    onChange={(e) => setAuthData({...authData, referralCode: e.target.value})}
-                    className="bg-white/10 border-white/20 text-white placeholder-white/50"
+                    placeholder="Enter your username"
+                    value={authData.username}
+                    onChange={(e) => setAuthData({...authData, username: e.target.value})}
+                    className="w-full"
+                    required
                   />
                 </div>
-              )}
+                
+                <div>
+                  <label className="text-sm font-medium text-gray-700 mb-2 block">Password</label>
+                  <div className="relative">
+                    <Input
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Enter your password"
+                      value={authData.password}
+                      onChange={(e) => setAuthData({...authData, password: e.target.value})}
+                      className="w-full pr-10"
+                      required
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                </div>
 
-              <Button type="submit" className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700">
-                {authMode === 'signup' ? 'Sign Up & Claim 25 TRX' : 'Sign In'}
-              </Button>
-            </form>
+                {authMode === 'signup' && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-2 block">Referral Code (Optional)</label>
+                    <Input
+                      type="text"
+                      placeholder="Enter referral code"
+                      value={authData.referralCode}
+                      onChange={(e) => setAuthData({...authData, referralCode: e.target.value})}
+                      className="w-full"
+                    />
+                  </div>
+                )}
 
-            <div className="text-center">
-              <Button
-                variant="link"
-                className="text-white/80 hover:text-white"
-                onClick={() => setAuthMode(authMode === 'signup' ? 'signin' : 'signup')}
-              >
-                {authMode === 'signup' ? 'Already have account? Sign In' : 'New here? Sign Up'}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+                {authError && (
+                  <div className="bg-red-50 border border-red-200 rounded p-3">
+                    <p className="text-red-600 text-sm">{authError}</p>
+                  </div>
+                )}
+
+                <Button 
+                  type="submit" 
+                  className="w-full bg-blue-600 hover:bg-blue-700"
+                  disabled={authLoading}
+                >
+                  {authLoading ? 'Please wait...' : (authMode === 'signup' ? 'Create Account & Get 25 TRX' : 'Sign In')}
+                </Button>
+              </form>
+
+              <div className="mt-6 text-center">
+                <Button
+                  variant="link"
+                  className="text-blue-600 hover:text-blue-700 text-sm"
+                  onClick={() => {
+                    setAuthMode(authMode === 'signup' ? 'signin' : 'signup')
+                    setAuthError('')
+                  }}
+                >
+                  {authMode === 'signup' ? 'Already have an account? Sign In' : 'New to MineTRXWith? Create Account'}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     )
   }
 
   // Main Navigation
-  const NavButton = ({ page, icon: Icon, label, isActive }) => (
+  const NavButton = ({ page, icon: Icon, label, isActive, onClick }) => (
     <Button
       variant={isActive ? "default" : "ghost"}
       size="sm"
-      className={`flex items-center gap-2 ${isActive ? 'bg-white/20 text-white' : 'text-white/80 hover:text-white hover:bg-white/10'}`}
-      onClick={() => setCurrentPage(page)}
+      className={`flex items-center gap-2 ${isActive ? 'bg-blue-600 text-white' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}`}
+      onClick={onClick}
     >
       <Icon className="h-4 w-4" />
       <span className="hidden sm:inline">{label}</span>
@@ -345,123 +408,167 @@ export default function App() {
 
   // Homepage
   const HomePage = () => (
-    <div className="space-y-8">
+    <div className="space-y-12">
       {/* Hero Section */}
-      <div className="text-center space-y-6">
-        <h1 className="text-4xl md:text-6xl font-bold text-white mb-4">
-          Mine<span className="text-green-400">TRX</span>With
+      <div className="text-center space-y-6 py-12">
+        <h1 className="text-4xl md:text-6xl font-bold text-gray-900">
+          Mine<span className="text-blue-600">TRX</span>With
         </h1>
-        <p className="text-xl text-white/80 max-w-2xl mx-auto">
-          The most trusted TRX mining platform. Start mining today and earn passive income!
+        <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+          Professional TRX mining platform with enterprise-grade infrastructure. 
+          Start mining today and build your passive income stream.
         </p>
+        <div className="flex justify-center gap-4 pt-4">
+          <Badge variant="outline" className="text-green-600 border-green-600">
+            ✓ 99.9% Uptime
+          </Badge>
+          <Badge variant="outline" className="text-blue-600 border-blue-600">
+            ✓ Licensed & Regulated
+          </Badge>
+          <Badge variant="outline" className="text-orange-600 border-orange-600">
+            ✓ 24/7 Support
+          </Badge>
+        </div>
       </div>
 
       {/* Live Withdrawals */}
-      <Card className="bg-white/10 backdrop-blur-md border-white/20">
+      <Card>
         <CardHeader>
-          <CardTitle className="text-white flex items-center gap-2">
-            <TrendingUp className="h-5 w-5 text-green-400" />
-            Live Withdrawals
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5 text-green-600" />
+            Recent Withdrawals
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-2 max-h-40 overflow-y-auto">
+          <div className="space-y-3">
             {liveWithdrawals.map((withdrawal, index) => (
-              <div key={index} className="flex justify-between items-center p-2 bg-white/5 rounded">
-                <span className="text-white/80">{withdrawal.username}</span>
-                <span className="text-green-400 font-semibold">{withdrawal.amount} TRX</span>
-                <span className="text-white/60 text-sm">
-                  {new Date(withdrawal.timestamp).toLocaleTimeString()}
-                </span>
+              <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                    <User className="h-4 w-4 text-white" />
+                  </div>
+                  <span className="font-medium text-gray-900">{withdrawal.username}</span>
+                </div>
+                <div className="text-right">
+                  <div className="text-green-600 font-semibold">{withdrawal.amount} TRX</div>
+                  <div className="text-gray-500 text-sm">
+                    {new Date(withdrawal.timestamp).toLocaleTimeString()}
+                  </div>
+                </div>
               </div>
             ))}
           </div>
         </CardContent>
       </Card>
 
-      {/* Mining Farm Info */}
-      <div className="grid md:grid-cols-3 gap-6">
-        <Card className="bg-white/10 backdrop-blur-md border-white/20">
+      {/* Features Grid */}
+      <div className="grid md:grid-cols-3 gap-8">
+        <Card>
           <CardContent className="p-6 text-center">
-            <Server className="h-12 w-12 text-green-400 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-white mb-2">Biggest Mining Farm</h3>
-            <p className="text-white/80">State-of-the-art mining infrastructure with 99.9% uptime</p>
+            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-4">
+              <Server className="h-6 w-6 text-blue-600" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Enterprise Mining</h3>
+            <p className="text-gray-600">Industrial-grade mining infrastructure with guaranteed uptime and maximum efficiency.</p>
           </CardContent>
         </Card>
 
-        <Card className="bg-white/10 backdrop-blur-md border-white/20">
+        <Card>
           <CardContent className="p-6 text-center">
-            <Shield className="h-12 w-12 text-blue-400 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-white mb-2">Legal Platform</h3>
-            <p className="text-white/80">Fully compliant and regulated mining operations</p>
+            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-4">
+              <Shield className="h-6 w-6 text-green-600" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Fully Licensed</h3>
+            <p className="text-gray-600">Regulated and compliant mining operations with full legal protection for your investments.</p>
           </CardContent>
         </Card>
 
-        <Card className="bg-white/10 backdrop-blur-md border-white/20">
+        <Card>
           <CardContent className="p-6 text-center">
-            <Coins className="h-12 w-12 text-yellow-400 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-white mb-2">Proven Returns</h3>
-            <p className="text-white/80">Consistent mining rewards with transparent payouts</p>
+            <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center mx-auto mb-4">
+              <Coins className="h-6 w-6 text-orange-600" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Proven Returns</h3>
+            <p className="text-gray-600">Consistent mining rewards with transparent payouts and detailed performance tracking.</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Mining Nodes */}
-      <div className="space-y-6">
-        <h2 className="text-3xl font-bold text-white text-center">Choose Your Mining Node</h2>
+      <div className="space-y-8">
+        <div className="text-center">
+          <h2 className="text-3xl font-bold text-gray-900 mb-4">Mining Plans</h2>
+          <p className="text-gray-600 max-w-2xl mx-auto">
+            Choose the perfect mining plan for your goals. All plans include 24/7 monitoring, 
+            automatic payouts, and enterprise-grade security.
+          </p>
+        </div>
+        
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
           {miningNodes.map((node) => {
             const userNode = userNodes.find(un => un.nodeId === node.id && un.status === 'running')
             const isRunning = !!userNode
+            const isPopular = node.id === 'node3'
             
             return (
-              <Card key={node.id} className={`bg-white/10 backdrop-blur-md border-white/20 ${isRunning ? 'ring-2 ring-green-400' : ''}`}>
+              <Card key={node.id} className={`relative ${isRunning ? 'ring-2 ring-blue-600' : ''} ${isPopular ? 'ring-2 ring-orange-500' : ''}`}>
+                {isPopular && (
+                  <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                    <Badge className="bg-orange-500 text-white">Most Popular</Badge>
+                  </div>
+                )}
+                
                 <CardHeader>
-                  <CardTitle className="text-white flex items-center justify-between">
-                    {node.name}
-                    {isRunning && <Badge className="bg-green-500 text-white">Running</Badge>}
+                  <CardTitle className="flex items-center justify-between">
+                    <div>
+                      <div className="text-lg font-bold text-gray-900">{node.name}</div>
+                      <div className="text-sm text-gray-600">{node.storage}</div>
+                    </div>
+                    {isRunning && <Badge className="bg-green-500 text-white">Active</Badge>}
                   </CardTitle>
-                  <p className="text-white/80">{node.storage}</p>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-white/80">Price:</span>
-                      <span className="text-green-400 font-semibold">{node.price} TRX</span>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Price</span>
+                      <span className="text-2xl font-bold text-gray-900">{node.price} TRX</span>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-white/80">Mining:</span>
-                      <span className="text-white">{node.mining} TRX</span>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Mining</span>
+                      <span className="font-semibold text-green-600">{node.mining} TRX</span>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-white/80">Duration:</span>
-                      <span className="text-white">{node.duration} days</span>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Duration</span>
+                      <span className="font-semibold text-gray-900">{node.duration} days</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Daily Income</span>
+                      <span className="font-semibold text-blue-600">{Math.round(node.mining / node.duration)} TRX</span>
                     </div>
                   </div>
                   
                   {isRunning && (
-                    <div className="space-y-2">
+                    <div className="space-y-2 pt-4 border-t">
                       <div className="flex justify-between text-sm">
-                        <span className="text-white/80">Progress:</span>
-                        <span className="text-white">{Math.round(userNode.progress)}%</span>
+                        <span className="text-gray-600">Progress</span>
+                        <span className="font-semibold">{Math.round(userNode.progress)}%</span>
                       </div>
                       <Progress value={userNode.progress} className="h-2" />
-                      <div className="flex justify-between text-sm">
-                        <span className="text-white/80">Ends:</span>
-                        <span className="text-white">{new Date(userNode.endDate).toLocaleDateString()}</span>
+                      <div className="text-xs text-gray-500">
+                        Ends: {new Date(userNode.endDate).toLocaleDateString()}
                       </div>
                     </div>
                   )}
                   
                   <Button
-                    className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
+                    className={`w-full ${isPopular ? 'bg-orange-500 hover:bg-orange-600' : 'bg-blue-600 hover:bg-blue-700'}`}
                     onClick={() => {
                       setSelectedNode(node)
                       setShowPayment(true)
                     }}
                     disabled={isRunning}
                   >
-                    {isRunning ? 'Active' : `Buy for ${node.price} TRX`}
+                    {isRunning ? 'Mining Active' : `Start Mining - ${node.price} TRX`}
                   </Button>
                 </CardContent>
               </Card>
@@ -472,21 +579,21 @@ export default function App() {
 
       {/* Payment Modal */}
       {showPayment && selectedNode && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <Card className="w-full max-w-md bg-white/10 backdrop-blur-md border-white/20">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <Card className="w-full max-w-md">
             <CardHeader>
-              <CardTitle className="text-white">Purchase {selectedNode.name}</CardTitle>
+              <CardTitle>Purchase {selectedNode.name}</CardTitle>
+              <p className="text-gray-600">Send exactly {selectedNode.price} TRX to activate your mining node</p>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <p className="text-white/80">Send exactly <strong className="text-green-400">{selectedNode.price} TRX</strong> to:</p>
-                <div className="flex items-center gap-2 p-3 bg-white/5 rounded">
-                  <code className="text-white flex-1 text-sm break-all">{TRX_RECEIVE_ADDRESS}</code>
+                <label className="text-sm font-medium text-gray-700">Send {selectedNode.price} TRX to:</label>
+                <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+                  <code className="text-sm font-mono flex-1 break-all">{TRX_RECEIVE_ADDRESS}</code>
                   <Button
                     size="sm"
-                    variant="ghost"
+                    variant="outline"
                     onClick={() => copyToClipboard(TRX_RECEIVE_ADDRESS)}
-                    className="text-white/80 hover:text-white"
                   >
                     <Copy className="h-4 w-4" />
                   </Button>
@@ -494,12 +601,12 @@ export default function App() {
               </div>
               
               <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">Transaction Hash</label>
                 <Input
                   type="text"
-                  placeholder="Enter transaction hash"
+                  placeholder="Enter transaction hash after payment"
                   value={transactionHash}
                   onChange={(e) => setTransactionHash(e.target.value)}
-                  className="bg-white/10 border-white/20 text-white placeholder-white/50"
                 />
               </div>
               
@@ -511,15 +618,16 @@ export default function App() {
                     setSelectedNode(null)
                     setTransactionHash('')
                   }}
-                  className="flex-1 border-white/20 text-white hover:bg-white/10"
+                  className="flex-1"
                 >
                   Cancel
                 </Button>
                 <Button
                   onClick={handlePurchaseNode}
-                  className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
+                  className="flex-1 bg-blue-600 hover:bg-blue-700"
+                  disabled={!transactionHash}
                 >
-                  I Already Paid
+                  Confirm Payment
                 </Button>
               </div>
             </CardContent>
@@ -533,97 +641,101 @@ export default function App() {
   const ProfilePage = () => (
     <div className="space-y-8">
       <div className="text-center">
-        <h2 className="text-3xl font-bold text-white mb-2">Profile</h2>
-        <p className="text-white/80">Welcome back, {userProfile?.username}!</p>
+        <h2 className="text-3xl font-bold text-gray-900 mb-2">Account Dashboard</h2>
+        <p className="text-gray-600">Welcome back, {userProfile?.username}!</p>
       </div>
 
       {/* Balance Cards */}
       <div className="grid md:grid-cols-2 gap-6">
         {/* Mine Balance */}
-        <Card className="bg-white/10 backdrop-blur-md border-white/20">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-white flex items-center gap-2">
-              <Coins className="h-5 w-5 text-green-400" />
-              Mine Balance
+            <CardTitle className="flex items-center gap-2">
+              <Coins className="h-5 w-5 text-green-600" />
+              Mining Balance
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="text-center">
-              <div className="text-3xl font-bold text-green-400 mb-2">
+              <div className="text-4xl font-bold text-green-600 mb-2">
                 {userProfile?.mineBalance || 0} TRX
               </div>
-              <p className="text-white/80 text-sm">Includes signup bonus + mining rewards</p>
+              <p className="text-gray-600 text-sm">Available for withdrawal</p>
             </div>
             
-            <div className="space-y-2">
-              <Input
-                type="number"
-                placeholder="Amount to withdraw"
-                value={withdrawAmount}
-                onChange={(e) => setWithdrawAmount(e.target.value)}
-                className="bg-white/10 border-white/20 text-white placeholder-white/50"
-              />
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">Withdrawal Amount</label>
+                <Input
+                  type="number"
+                  placeholder="Enter amount"
+                  value={withdrawAmount}
+                  onChange={(e) => setWithdrawAmount(e.target.value)}
+                />
+              </div>
               <Button
                 onClick={() => {
                   setWithdrawType('mine')
                   handleWithdraw()
                 }}
-                className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
+                className="w-full bg-green-600 hover:bg-green-700"
               >
-                Withdraw Mine Balance
+                Withdraw Mining Balance
               </Button>
             </div>
             
-            <div className="text-xs text-white/60 space-y-1">
-              <p>• Minimum: 25 TRX</p>
-              <p>• Must buy any node for first withdrawal</p>
+            <div className="text-xs text-gray-500 space-y-1 pt-2 border-t">
+              <p>• Minimum withdrawal: 25 TRX</p>
+              <p>• Must purchase a mining node first</p>
               {userProfile?.hasActiveMining && (
-                <p className="text-green-400">✓ Can withdraw immediately</p>
+                <p className="text-green-600">✓ Withdrawal available</p>
               )}
             </div>
           </CardContent>
         </Card>
 
         {/* Referral Balance */}
-        <Card className="bg-white/10 backdrop-blur-md border-white/20">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-white flex items-center gap-2">
-              <Users className="h-5 w-5 text-blue-400" />
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-blue-600" />
               Referral Balance
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="text-center">
-              <div className="text-3xl font-bold text-blue-400 mb-2">
+              <div className="text-4xl font-bold text-blue-600 mb-2">
                 {userProfile?.referralBalance || 0} TRX
               </div>
-              <p className="text-white/80 text-sm">Earned from referrals</p>
+              <p className="text-gray-600 text-sm">Earned from referrals</p>
             </div>
             
-            <div className="space-y-2">
-              <Input
-                type="number"
-                placeholder="Amount to withdraw"
-                value={withdrawAmount}
-                onChange={(e) => setWithdrawAmount(e.target.value)}
-                className="bg-white/10 border-white/20 text-white placeholder-white/50"
-              />
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">Withdrawal Amount</label>
+                <Input
+                  type="number"
+                  placeholder="Enter amount"
+                  value={withdrawAmount}
+                  onChange={(e) => setWithdrawAmount(e.target.value)}
+                />
+              </div>
               <Button
                 onClick={() => {
                   setWithdrawType('referral')
                   handleWithdraw()
                 }}
-                className="w-full bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700"
+                className="w-full bg-blue-600 hover:bg-blue-700"
               >
                 Withdraw Referral Balance
               </Button>
             </div>
             
-            <div className="text-xs text-white/60 space-y-1">
-              <p>• Minimum: 50 TRX</p>
-              <p>• Must buy Node 4 (1024 GB) first</p>
+            <div className="text-xs text-gray-500 space-y-1 pt-2 border-t">
+              <p>• Minimum withdrawal: 50 TRX</p>
+              <p>• Must purchase Node 4 (1024 GB) first</p>
               {userProfile?.hasBoughtNode4 && (
-                <p className="text-green-400">✓ Can withdraw referral balance</p>
+                <p className="text-green-600">✓ Withdrawal available</p>
               )}
             </div>
           </CardContent>
@@ -632,10 +744,10 @@ export default function App() {
 
       {/* Active Nodes */}
       {userNodes.length > 0 && (
-        <Card className="bg-white/10 backdrop-blur-md border-white/20">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-white flex items-center gap-2">
-              <Server className="h-5 w-5 text-green-400" />
+            <CardTitle className="flex items-center gap-2">
+              <Server className="h-5 w-5 text-green-600" />
               Active Mining Nodes
             </CardTitle>
           </CardHeader>
@@ -644,21 +756,27 @@ export default function App() {
               {userNodes.map((userNode) => {
                 const node = miningNodes.find(n => n.id === userNode.nodeId)
                 return (
-                  <div key={userNode.id} className="p-4 bg-white/5 rounded space-y-2">
+                  <div key={userNode.id} className="p-4 bg-gray-50 rounded-lg space-y-3">
                     <div className="flex justify-between items-center">
-                      <h4 className="text-white font-semibold">{node?.name}</h4>
-                      <Badge className="bg-green-500 text-white">{userNode.status}</Badge>
+                      <div>
+                        <h4 className="font-semibold text-gray-900">{node?.name}</h4>
+                        <p className="text-sm text-gray-600">Started: {new Date(userNode.startDate).toLocaleDateString()}</p>
+                      </div>
+                      <Badge className={userNode.status === 'running' ? 'bg-green-500' : 'bg-gray-500'}>
+                        {userNode.status}
+                      </Badge>
                     </div>
-                    <div className="space-y-1">
+                    
+                    <div className="space-y-2">
                       <div className="flex justify-between text-sm">
-                        <span className="text-white/80">Progress:</span>
-                        <span className="text-white">{Math.round(userNode.progress)}%</span>
+                        <span className="text-gray-600">Mining Progress</span>
+                        <span className="font-semibold">{Math.round(userNode.progress)}%</span>
                       </div>
                       <Progress value={userNode.progress} className="h-2" />
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-white/80">Mining:</span>
-                      <span className="text-green-400">{userNode.miningAmount} TRX</span>
+                      <div className="flex justify-between text-sm text-gray-600">
+                        <span>Total Mining: {userNode.miningAmount} TRX</span>
+                        <span>Ends: {new Date(userNode.endDate).toLocaleDateString()}</span>
+                      </div>
                     </div>
                   </div>
                 )
@@ -674,67 +792,68 @@ export default function App() {
   const ReferralPage = () => (
     <div className="space-y-8">
       <div className="text-center">
-        <h2 className="text-3xl font-bold text-white mb-2">Referral System</h2>
-        <p className="text-white/80">Invite friends and earn 50 TRX per valid referral!</p>
+        <h2 className="text-3xl font-bold text-gray-900 mb-2">Referral Program</h2>
+        <p className="text-gray-600">Earn 50 TRX for every friend who starts mining</p>
       </div>
 
       {/* Referral Code */}
-      <Card className="bg-white/10 backdrop-blur-md border-white/20">
+      <Card>
         <CardHeader>
-          <CardTitle className="text-white flex items-center gap-2">
-            <UserPlus className="h-5 w-5 text-green-400" />
+          <CardTitle className="flex items-center gap-2">
+            <UserPlus className="h-5 w-5 text-green-600" />
             Your Referral Code
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center gap-2 p-3 bg-white/5 rounded">
-            <code className="text-white flex-1 text-lg font-bold">{userProfile?.referralCode}</code>
+          <div className="text-center">
+            <div className="text-3xl font-bold text-blue-600 mb-2">{userProfile?.referralCode}</div>
+            <p className="text-gray-600 text-sm mb-4">Share this code with friends to earn rewards</p>
             <Button
-              size="sm"
-              variant="ghost"
               onClick={() => copyToClipboard(userProfile?.referralCode)}
-              className="text-white/80 hover:text-white"
+              className="bg-blue-600 hover:bg-blue-700"
             >
-              <Copy className="h-4 w-4" />
+              <Copy className="h-4 w-4 mr-2" />
+              Copy Code
             </Button>
           </div>
-          <p className="text-white/80 text-sm">Share this code with friends to earn referral rewards!</p>
         </CardContent>
       </Card>
 
-      {/* Referral Info */}
-      <Card className="bg-white/10 backdrop-blur-md border-white/20">
+      {/* How It Works */}
+      <Card>
         <CardHeader>
-          <CardTitle className="text-white">How Referrals Work</CardTitle>
+          <CardTitle>How Referrals Work</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-start gap-3">
-            <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-              <span className="text-white text-sm font-bold">1</span>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex items-start gap-4">
+              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <span className="text-blue-600 font-bold text-sm">1</span>
+              </div>
+              <div>
+                <h4 className="font-semibold text-gray-900">Share Your Code</h4>
+                <p className="text-gray-600 text-sm">Give your referral code to friends and family</p>
+              </div>
             </div>
-            <div>
-              <h4 className="text-white font-semibold">Share Your Code</h4>
-              <p className="text-white/80 text-sm">Friends sign up using your referral code</p>
+            
+            <div className="flex items-start gap-4">
+              <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <span className="text-green-600 font-bold text-sm">2</span>
+              </div>
+              <div>
+                <h4 className="font-semibold text-gray-900">They Start Mining</h4>
+                <p className="text-gray-600 text-sm">When they create an account and purchase any mining node</p>
+              </div>
             </div>
-          </div>
-          
-          <div className="flex items-start gap-3">
-            <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-              <span className="text-white text-sm font-bold">2</span>
-            </div>
-            <div>
-              <h4 className="text-white font-semibold">They Buy a Node</h4>
-              <p className="text-white/80 text-sm">Referral becomes valid when they purchase any mining node</p>
-            </div>
-          </div>
-          
-          <div className="flex items-start gap-3">
-            <div className="w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-              <span className="text-white text-sm font-bold">3</span>
-            </div>
-            <div>
-              <h4 className="text-white font-semibold">You Earn 50 TRX</h4>
-              <p className="text-white/80 text-sm">Instant reward added to your referral balance</p>
+            
+            <div className="flex items-start gap-4">
+              <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <span className="text-orange-600 font-bold text-sm">3</span>
+              </div>
+              <div>
+                <h4 className="font-semibold text-gray-900">You Earn 50 TRX</h4>
+                <p className="text-gray-600 text-sm">Instant reward added to your referral balance</p>
+              </div>
             </div>
           </div>
         </CardContent>
@@ -742,36 +861,36 @@ export default function App() {
 
       {/* Referral Stats */}
       <div className="grid md:grid-cols-2 gap-6">
-        <Card className="bg-white/10 backdrop-blur-md border-white/20">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-white flex items-center gap-2">
-              <Clock className="h-5 w-5 text-orange-400" />
-              Invalid Referrals
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5 text-orange-600" />
+              Pending Referrals
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-center">
-              <div className="text-3xl font-bold text-orange-400 mb-2">
+              <div className="text-3xl font-bold text-orange-600 mb-2">
                 {referrals.filter(r => !r.isValid).length}
               </div>
-              <p className="text-white/80 text-sm">Signed up but haven't bought nodes yet</p>
+              <p className="text-gray-600 text-sm">Signed up, awaiting first purchase</p>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-white/10 backdrop-blur-md border-white/20">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-white flex items-center gap-2">
-              <CheckCircle className="h-5 w-5 text-green-400" />
-              Valid Referrals
+            <CardTitle className="flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-green-600" />
+              Successful Referrals
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-center">
-              <div className="text-3xl font-bold text-green-400 mb-2">
+              <div className="text-3xl font-bold text-green-600 mb-2">
                 {referrals.filter(r => r.isValid).length}
               </div>
-              <p className="text-white/80 text-sm">Bought nodes and earned you rewards</p>
+              <p className="text-gray-600 text-sm">Earned you rewards</p>
             </div>
           </CardContent>
         </Card>
@@ -779,22 +898,22 @@ export default function App() {
 
       {/* Referral History */}
       {referrals.length > 0 && (
-        <Card className="bg-white/10 backdrop-blur-md border-white/20">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-white">Referral History</CardTitle>
+            <CardTitle>Referral History</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
+            <div className="space-y-3">
               {referrals.map((referral) => (
-                <div key={referral.id} className="flex justify-between items-center p-3 bg-white/5 rounded">
+                <div key={referral.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                   <div>
-                    <div className="text-white font-semibold">{referral.referredUsername || 'User'}</div>
-                    <div className="text-white/60 text-sm">
-                      {new Date(referral.createdAt).toLocaleDateString()}
+                    <div className="font-semibold text-gray-900">User #{referral.referredId.slice(-6)}</div>
+                    <div className="text-gray-600 text-sm">
+                      Joined: {new Date(referral.createdAt).toLocaleDateString()}
                     </div>
                   </div>
                   <Badge className={referral.isValid ? 'bg-green-500' : 'bg-orange-500'}>
-                    {referral.isValid ? 'Valid' : 'Invalid'}
+                    {referral.isValid ? 'Active' : 'Pending'}
                   </Badge>
                 </div>
               ))}
@@ -806,35 +925,116 @@ export default function App() {
   )
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white/10 backdrop-blur-md border-b border-white/20 sticky top-0 z-40">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <h1 className="text-xl font-bold text-white">Mine<span className="text-green-400">TRX</span>With</h1>
+      <header className="bg-white shadow-sm border-b sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center">
+              <h1 className="text-xl font-bold text-gray-900">
+                Mine<span className="text-blue-600">TRX</span>With
+              </h1>
             </div>
             
-            <nav className="flex items-center gap-2">
-              <NavButton page="home" icon={Home} label="Home" isActive={currentPage === 'home'} />
-              <NavButton page="profile" icon={User} label="Profile" isActive={currentPage === 'profile'} />
-              <NavButton page="referral" icon={Users} label="Referral" isActive={currentPage === 'referral'} />
+            {/* Desktop Navigation */}
+            <nav className="hidden md:flex items-center space-x-1">
+              <NavButton 
+                page="home" 
+                icon={Home} 
+                label="Home" 
+                isActive={currentPage === 'home'}
+                onClick={() => setCurrentPage('home')}
+              />
+              <NavButton 
+                page="profile" 
+                icon={User} 
+                label="Profile" 
+                isActive={currentPage === 'profile'}
+                onClick={() => setCurrentPage('profile')}
+              />
+              <NavButton 
+                page="referral" 
+                icon={Users} 
+                label="Referral" 
+                isActive={currentPage === 'referral'}
+                onClick={() => setCurrentPage('referral')}
+              />
               
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={signOut}
-                className="text-white/80 hover:text-white hover:bg-white/10 ml-2"
+                className="ml-4 text-gray-600 hover:text-gray-900"
               >
+                <LogOut className="h-4 w-4 mr-2" />
                 Sign Out
               </Button>
             </nav>
+
+            {/* Mobile Menu Button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="md:hidden"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            >
+              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </Button>
           </div>
+
+          {/* Mobile Menu */}
+          {mobileMenuOpen && (
+            <div className="md:hidden py-4 border-t">
+              <div className="space-y-2">
+                <Button
+                  variant={currentPage === 'home' ? 'default' : 'ghost'}
+                  className="w-full justify-start"
+                  onClick={() => {
+                    setCurrentPage('home')
+                    setMobileMenuOpen(false)
+                  }}
+                >
+                  <Home className="h-4 w-4 mr-2" />
+                  Home
+                </Button>
+                <Button
+                  variant={currentPage === 'profile' ? 'default' : 'ghost'}
+                  className="w-full justify-start"
+                  onClick={() => {
+                    setCurrentPage('profile')
+                    setMobileMenuOpen(false)
+                  }}
+                >
+                  <User className="h-4 w-4 mr-2" />
+                  Profile
+                </Button>
+                <Button
+                  variant={currentPage === 'referral' ? 'default' : 'ghost'}
+                  className="w-full justify-start"
+                  onClick={() => {
+                    setCurrentPage('referral')
+                    setMobileMenuOpen(false)
+                  }}
+                >
+                  <Users className="h-4 w-4 mr-2" />
+                  Referral
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start text-red-600 hover:text-red-700"
+                  onClick={signOut}
+                >
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Sign Out
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {currentPage === 'home' && <HomePage />}
         {currentPage === 'profile' && <ProfilePage />}
         {currentPage === 'referral' && <ReferralPage />}

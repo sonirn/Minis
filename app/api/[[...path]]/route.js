@@ -14,14 +14,6 @@ async function connectDB() {
   return db
 }
 
-// Mock Supabase user for development
-const mockUser = {
-  id: 'mock-user-123',
-  username: 'testuser',
-  email: 'test@example.com',
-  created_at: new Date().toISOString()
-}
-
 function handleCORS(response) {
   response.headers.set('Access-Control-Allow-Origin', '*')
   response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
@@ -76,7 +68,8 @@ export async function GET(request) {
     const pathname = url.pathname.replace('/api', '')
 
     if (pathname === '/auth/user') {
-      return handleCORS(NextResponse.json({ user: mockUser }))
+      // For now, return null to indicate no user is logged in
+      return handleCORS(NextResponse.json({ user: null }))
     }
 
     if (pathname === '/nodes') {
@@ -84,45 +77,21 @@ export async function GET(request) {
     }
 
     if (pathname === '/user/profile') {
-      const userId = mockUser.id
-      let user = await db.collection('users').findOne({ id: userId })
-      
-      if (!user) {
-        // Create initial user with signup bonus
-        user = {
-          id: userId,
-          username: mockUser.username,
-          email: mockUser.email,
-          mineBalance: 25, // Signup bonus
-          referralBalance: 0,
-          totalReferrals: 0,
-          validReferrals: 0,
-          referralCode: uuidv4().substring(0, 8).toUpperCase(),
-          hasActiveMining: false,
-          hasBoughtNode4: false,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        }
-        await db.collection('users').insertOne(user)
-      }
-      
-      return handleCORS(NextResponse.json({ user }))
+      // This requires authentication - should be handled by frontend
+      return handleCORS(NextResponse.json({ error: 'User not authenticated' }, { status: 401 }))
     }
 
     if (pathname === '/user/nodes') {
-      const userId = mockUser.id
-      const userNodes = await db.collection('user_nodes').find({ userId }).toArray()
-      return handleCORS(NextResponse.json({ nodes: userNodes }))
+      // This requires authentication - should be handled by frontend
+      return handleCORS(NextResponse.json({ error: 'User not authenticated' }, { status: 401 }))
     }
 
     if (pathname === '/user/referrals') {
-      const userId = mockUser.id
-      const referrals = await db.collection('referrals').find({ referrerId: userId }).toArray()
-      return handleCORS(NextResponse.json({ referrals }))
+      // This requires authentication - should be handled by frontend
+      return handleCORS(NextResponse.json({ error: 'User not authenticated' }, { status: 401 }))
     }
 
     if (pathname === '/withdrawals') {
-      const userId = mockUser.id
       const mockWithdrawals = [
         { username: 'user123', amount: 150, timestamp: new Date(Date.now() - 1000 * 60 * 5) },
         { username: 'miner456', amount: 2500, timestamp: new Date(Date.now() - 1000 * 60 * 10) },
@@ -151,6 +120,10 @@ export async function POST(request) {
     if (pathname === '/auth/signup') {
       const { username, password, referralCode } = body
       
+      if (!username || !password) {
+        return handleCORS(NextResponse.json({ error: 'Username and password are required' }, { status: 400 }))
+      }
+
       // Check if username already exists
       const existingUser = await db.collection('users').findOne({ username })
       if (existingUser) {
@@ -164,7 +137,7 @@ export async function POST(request) {
         id: userId,
         username,
         password, // In production, this should be hashed
-        email: `${username}@mock.com`,
+        email: `${username}@trxmining.com`,
         mineBalance: 25, // Signup bonus
         referralBalance: 0,
         totalReferrals: 0,
@@ -179,14 +152,14 @@ export async function POST(request) {
       await db.collection('users').insertOne(newUser)
 
       // Handle referral if provided
-      if (referralCode) {
-        const referrer = await db.collection('users').findOne({ referralCode })
+      if (referralCode && referralCode.trim() !== '') {
+        const referrer = await db.collection('users').findOne({ referralCode: referralCode.trim() })
         if (referrer) {
           await db.collection('referrals').insertOne({
             id: uuidv4(),
             referrerId: referrer.id,
             referredId: userId,
-            referralCode,
+            referralCode: referralCode.trim(),
             isValid: false,
             createdAt: new Date()
           })
@@ -202,6 +175,10 @@ export async function POST(request) {
     if (pathname === '/auth/signin') {
       const { username, password } = body
       
+      if (!username || !password) {
+        return handleCORS(NextResponse.json({ error: 'Username and password are required' }, { status: 400 }))
+      }
+
       const user = await db.collection('users').findOne({ username, password })
       if (!user) {
         return handleCORS(NextResponse.json({ error: 'Invalid credentials' }, { status: 401 }))
@@ -213,16 +190,77 @@ export async function POST(request) {
       }))
     }
 
-    if (pathname === '/nodes/purchase') {
-      const { nodeId, transactionHash } = body
-      const userId = mockUser.id
+    if (pathname === '/user/profile') {
+      // This would normally check authentication, but for now we'll use the user from the request
+      const { userId } = body
       
+      if (!userId) {
+        return handleCORS(NextResponse.json({ error: 'User ID required' }, { status: 400 }))
+      }
+
+      let user = await db.collection('users').findOne({ id: userId })
+      
+      if (!user) {
+        return handleCORS(NextResponse.json({ error: 'User not found' }, { status: 404 }))
+      }
+      
+      return handleCORS(NextResponse.json({ user }))
+    }
+
+    if (pathname === '/user/nodes') {
+      const { userId } = body
+      
+      if (!userId) {
+        return handleCORS(NextResponse.json({ error: 'User ID required' }, { status: 400 }))
+      }
+
+      const userNodes = await db.collection('user_nodes').find({ userId }).toArray()
+      
+      // Update mining progress for active nodes
+      const now = new Date()
+      const updatedNodes = userNodes.map(node => {
+        if (node.status === 'running') {
+          const elapsed = now - new Date(node.startDate)
+          const totalDuration = node.duration * 24 * 60 * 60 * 1000 // Convert days to milliseconds
+          const progress = Math.min(100, (elapsed / totalDuration) * 100)
+          
+          if (progress >= 100) {
+            node.status = 'completed'
+            node.progress = 100
+          } else {
+            node.progress = progress
+          }
+        }
+        return node
+      })
+
+      return handleCORS(NextResponse.json({ nodes: updatedNodes }))
+    }
+
+    if (pathname === '/user/referrals') {
+      const { userId } = body
+      
+      if (!userId) {
+        return handleCORS(NextResponse.json({ error: 'User ID required' }, { status: 400 }))
+      }
+
+      const referrals = await db.collection('referrals').find({ referrerId: userId }).toArray()
+      return handleCORS(NextResponse.json({ referrals }))
+    }
+
+    if (pathname === '/nodes/purchase') {
+      const { nodeId, transactionHash, userId } = body
+      
+      if (!userId) {
+        return handleCORS(NextResponse.json({ error: 'User ID required' }, { status: 400 }))
+      }
+
       const node = MINING_NODES.find(n => n.id === nodeId)
       if (!node) {
         return handleCORS(NextResponse.json({ error: 'Invalid node' }, { status: 400 }))
       }
 
-      // Mock transaction verification
+      // For now, we'll skip real TRX verification and just check transaction hash format
       if (!transactionHash || transactionHash.length < 10) {
         return handleCORS(NextResponse.json({ error: 'Invalid transaction hash' }, { status: 400 }))
       }
@@ -255,15 +293,18 @@ export async function POST(request) {
       await db.collection('user_nodes').insertOne(userNode)
 
       // Update user's mining status
+      const updateData = { 
+        hasActiveMining: true,
+        updatedAt: new Date()
+      }
+      
+      if (nodeId === 'node4') {
+        updateData.hasBoughtNode4 = true
+      }
+
       await db.collection('users').updateOne(
         { id: userId },
-        { 
-          $set: { 
-            hasActiveMining: true,
-            hasBoughtNode4: nodeId === 'node4' ? true : undefined,
-            updatedAt: new Date()
-          }
-        }
+        { $set: updateData }
       )
 
       return handleCORS(NextResponse.json({ 
@@ -273,9 +314,12 @@ export async function POST(request) {
     }
 
     if (pathname === '/withdraw') {
-      const { type, amount } = body // type: 'mine' or 'referral'
-      const userId = mockUser.id
+      const { type, amount, userId } = body
       
+      if (!userId) {
+        return handleCORS(NextResponse.json({ error: 'User ID required' }, { status: 400 }))
+      }
+
       const user = await db.collection('users').findOne({ id: userId })
       if (!user) {
         return handleCORS(NextResponse.json({ error: 'User not found' }, { status: 404 }))
