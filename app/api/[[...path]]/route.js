@@ -11,6 +11,10 @@ async function connectDB() {
     await client.connect()
     db = client.db('trx-mining')
   }
+  // Ensure db is properly initialized
+  if (!db) {
+    db = client.db('trx-mining')
+  }
   return db
 }
 
