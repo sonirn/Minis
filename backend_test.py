@@ -10,8 +10,8 @@ import time
 import uuid
 from datetime import datetime
 
-# Get base URL from environment
-BASE_URL = "https://e033fd5a-b700-4006-aba9-8ef786312ab0.preview.emergentagent.com/api"
+# Get base URL from environment - using localhost for testing
+BASE_URL = "http://localhost:3000/api"
 
 class TRXMiningAPITester:
     def __init__(self):
