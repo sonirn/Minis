@@ -10,8 +10,16 @@ import time
 import uuid
 from datetime import datetime
 
-# Get base URL from environment - using localhost for testing
-BASE_URL = "http://localhost:3000/api"
+# Get base URL from environment - using external URL for testing
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+# Use external URL from environment
+NEXT_PUBLIC_BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL', 'https://e033fd5a-b700-4006-aba9-8ef786312ab0.preview.emergentagent.com')
+BASE_URL = f"{NEXT_PUBLIC_BASE_URL}/api"
 
 class TRXMiningAPITester:
     def __init__(self):
