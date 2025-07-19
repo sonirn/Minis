@@ -225,68 +225,86 @@ class TRXMiningAPITester:
         """Test purchasing a mining node"""
         print("\n=== Testing Mining Nodes - Purchase ===")
         
-        # Test successful purchase
-        purchase_data = {
-            "nodeId": "node1",
-            "transactionHash": f"0x{uuid.uuid4().hex}"
+        # First create a user to get a valid userId
+        test_username = f"purchasetest_{uuid.uuid4().hex[:8]}"
+        signup_data = {
+            "username": test_username,
+            "password": "testpassword123"
         }
         
         try:
-            response = self.session.post(f"{self.base_url}/nodes/purchase", json=purchase_data)
+            # Create user first
+            signup_response = self.session.post(f"{self.base_url}/auth/signup", json=signup_data)
             
-            if response.status_code == 200:
-                data = response.json()
-                if 'message' in data and 'node' in data:
-                    self.log_test("Purchase Node - Success", True, "Node purchased successfully", data)
+            if signup_response.status_code == 200:
+                signup_result = signup_response.json()
+                user_id = signup_result['user']['id']
+                
+                # Test successful purchase (will fail TRX verification but should validate other logic)
+                purchase_data = {
+                    "nodeId": "node1",
+                    "transactionHash": f"0x{uuid.uuid4().hex}",
+                    "userId": user_id
+                }
+                
+                response = self.session.post(f"{self.base_url}/nodes/purchase", json=purchase_data)
+                
+                # This will likely fail TRX verification, but we can test the validation logic
+                if response.status_code == 400:
+                    data = response.json()
+                    if 'error' in data and ('Transaction not found' in data['error'] or 'Failed to verify' in data['error']):
+                        self.log_test("Purchase Node - TRX Verification", True, "TRX verification working (expected failure for test transaction)", data)
+                    else:
+                        self.log_test("Purchase Node - TRX Verification", False, f"Unexpected error: {data['error']}", data)
+                elif response.status_code == 200:
+                    data = response.json()
+                    if 'message' in data and 'node' in data:
+                        self.log_test("Purchase Node - Success", True, "Node purchased successfully", data)
+                    else:
+                        self.log_test("Purchase Node - Success", False, "Invalid response structure", data)
                 else:
-                    self.log_test("Purchase Node - Success", False, "Invalid response structure", data)
+                    self.log_test("Purchase Node - TRX Verification", False, f"HTTP {response.status_code}", response.json())
+                
+                # Test invalid node ID
+                invalid_purchase_data = {
+                    "nodeId": "invalid_node",
+                    "transactionHash": f"0x{uuid.uuid4().hex}",
+                    "userId": user_id
+                }
+                
+                response = self.session.post(f"{self.base_url}/nodes/purchase", json=invalid_purchase_data)
+                
+                if response.status_code == 400:
+                    data = response.json()
+                    if 'error' in data and 'Invalid node' in data['error']:
+                        self.log_test("Purchase Node - Invalid Node", True, "Correctly rejected invalid node", data)
+                    else:
+                        self.log_test("Purchase Node - Invalid Node", False, "Wrong error message", data)
+                else:
+                    self.log_test("Purchase Node - Invalid Node", False, f"Expected 400, got {response.status_code}", response.json())
+                
+                # Test invalid transaction hash
+                invalid_tx_data = {
+                    "nodeId": "node1",
+                    "transactionHash": "short",
+                    "userId": user_id
+                }
+                
+                response = self.session.post(f"{self.base_url}/nodes/purchase", json=invalid_tx_data)
+                
+                if response.status_code == 400:
+                    data = response.json()
+                    if 'error' in data and 'Invalid transaction hash' in data['error']:
+                        self.log_test("Purchase Node - Invalid TX Hash", True, "Correctly rejected invalid transaction hash", data)
+                    else:
+                        self.log_test("Purchase Node - Invalid TX Hash", False, "Wrong error message", data)
+                else:
+                    self.log_test("Purchase Node - Invalid TX Hash", False, f"Expected 400, got {response.status_code}", response.json())
             else:
-                self.log_test("Purchase Node - Success", False, f"HTTP {response.status_code}", response.json())
+                self.log_test("Purchase Node - Setup", False, "Could not create test user", signup_response.json())
                 
         except Exception as e:
-            self.log_test("Purchase Node - Success", False, f"Request failed: {str(e)}")
-        
-        # Test invalid node ID
-        invalid_purchase_data = {
-            "nodeId": "invalid_node",
-            "transactionHash": f"0x{uuid.uuid4().hex}"
-        }
-        
-        try:
-            response = self.session.post(f"{self.base_url}/nodes/purchase", json=invalid_purchase_data)
-            
-            if response.status_code == 400:
-                data = response.json()
-                if 'error' in data and 'Invalid node' in data['error']:
-                    self.log_test("Purchase Node - Invalid Node", True, "Correctly rejected invalid node", data)
-                else:
-                    self.log_test("Purchase Node - Invalid Node", False, "Wrong error message", data)
-            else:
-                self.log_test("Purchase Node - Invalid Node", False, f"Expected 400, got {response.status_code}", response.json())
-                
-        except Exception as e:
-            self.log_test("Purchase Node - Invalid Node", False, f"Request failed: {str(e)}")
-        
-        # Test invalid transaction hash
-        invalid_tx_data = {
-            "nodeId": "node1",
-            "transactionHash": "short"
-        }
-        
-        try:
-            response = self.session.post(f"{self.base_url}/nodes/purchase", json=invalid_tx_data)
-            
-            if response.status_code == 400:
-                data = response.json()
-                if 'error' in data and 'Invalid transaction hash' in data['error']:
-                    self.log_test("Purchase Node - Invalid TX Hash", True, "Correctly rejected invalid transaction hash", data)
-                else:
-                    self.log_test("Purchase Node - Invalid TX Hash", False, "Wrong error message", data)
-            else:
-                self.log_test("Purchase Node - Invalid TX Hash", False, f"Expected 400, got {response.status_code}", response.json())
-                
-        except Exception as e:
-            self.log_test("Purchase Node - Invalid TX Hash", False, f"Request failed: {str(e)}")
+            self.log_test("Purchase Node - Setup", False, f"Request failed: {str(e)}")
     
     def test_user_nodes(self):
         """Test getting user's active mining nodes"""
