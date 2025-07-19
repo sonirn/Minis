@@ -221,11 +221,11 @@ backend:
 
   - task: "Mining Nodes - Purchase Node"
     implemented: true
-    working: false
+    working: true
     file: "app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: true
         agent: "testing"
@@ -233,6 +233,9 @@ backend:
       - working: false
         agent: "main"
         comment: "Enhanced with comprehensive TRX verification using Trongrid API, improved duplicate checking, better tracking, and comprehensive error handling. Needs testing with new verification system."
+      - working: true
+        agent: "testing"
+        comment: "Enhanced node purchase flow tested successfully. Input validation working correctly (rejects empty fields, invalid transaction hashes). TRX verification system properly integrated and correctly rejects invalid transactions with appropriate error messages."
 
   - task: "User Nodes - Get Active Nodes"
     implemented: true
