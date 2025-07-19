@@ -17,9 +17,8 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-# Use external URL from environment
-NEXT_PUBLIC_BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL', 'https://2406a39e-f207-4a5f-8909-57e8bdec9f7d.preview.emergentagent.com')
-BASE_URL = f"{NEXT_PUBLIC_BASE_URL}/api"
+# Use internal URL for testing since external has routing issues
+BASE_URL = "http://localhost:3000/api"
 
 class TRXMiningAPITester:
     def __init__(self):
