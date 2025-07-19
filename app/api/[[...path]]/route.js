@@ -1,22 +1,28 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '../../../lib/supabase'
 import { v4 as uuidv4 } from 'uuid'
-// Import EnhancedTRXVerifier with error handling
+
+// Import enhanced modules with fallback
 let EnhancedTRXVerifier = null
 let dbInitializer = null
+let trxVerifier = null
 
+// Try to import enhanced modules
 try {
-  const enhancedTrxModule = await import('../../../lib/enhanced-trx-verifier')
+  const enhancedTrxModule = require('../../../lib/enhanced-trx-verifier')
   EnhancedTRXVerifier = enhancedTrxModule.default || enhancedTrxModule.EnhancedTRXVerifier
+  if (EnhancedTRXVerifier) {
+    trxVerifier = new EnhancedTRXVerifier()
+  }
 } catch (error) {
-  console.error('Failed to import EnhancedTRXVerifier:', error.message)
+  console.error('Enhanced TRX Verifier not available:', error.message)
 }
 
 try {
-  const dbModule = await import('../../../lib/database-initializer')
+  const dbModule = require('../../../lib/database-initializer')
   dbInitializer = dbModule.default
 } catch (error) {
-  console.error('Failed to import database-initializer:', error.message)
+  console.error('Database initializer not available:', error.message)
 }
 
 function handleCORS(response) {
