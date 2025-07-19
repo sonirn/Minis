@@ -7,8 +7,67 @@ import dbInitializer from '../../../lib/database-initializer'
 function handleCORS(response) {
   response.headers.set('Access-Control-Allow-Origin', '*')
   response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With')
+  response.headers.set('Access-Control-Max-Age', '86400')
   return response
+}
+
+// Enhanced referral processing function
+async function processReferralReward(userId) {
+  try {
+    console.log(`Processing referral reward for user: ${userId}`)
+    
+    const { data: referral, error: referralError } = await supabase
+      .from('referrals')
+      .select('*')
+      .eq('referred_id', userId)
+      .eq('is_valid', false)
+      .single()
+
+    if (referralError && referralError.code !== 'PGRST116') {
+      console.error('Referral lookup error:', referralError)
+      return
+    }
+
+    if (referral) {
+      console.log(`Found referral to process: ${referral.id}`)
+      
+      // Mark referral as valid and pay reward with enhanced tracking
+      const { error: updateReferralError } = await supabase
+        .from('referrals')
+        .update({ 
+          is_valid: true, 
+          reward_paid: true,
+          activated_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', referral.id)
+
+      if (!updateReferralError) {
+        // Add 50 TRX to referrer's balance with enhanced error handling
+        const { error: rewardError } = await supabase
+          .from('users')
+          .update({ 
+            referral_balance: supabase.raw('referral_balance + 50'),
+            valid_referrals: supabase.raw('valid_referrals + 1'),
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', referral.referrer_id)
+
+        if (rewardError) {
+          console.error('Referral reward error:', rewardError)
+        } else {
+          console.log(`Referral reward processed successfully for referrer: ${referral.referrer_id}`)
+        }
+      } else {
+        console.error('Referral update error:', updateReferralError)
+      }
+    } else {
+      console.log(`No pending referral found for user: ${userId}`)
+    }
+  } catch (error) {
+    console.error('Referral processing error:', error)
+  }
 }
 
 // Mining nodes configuration
