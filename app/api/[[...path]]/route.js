@@ -1,22 +1,6 @@
 import { NextResponse } from 'next/server'
-import { MongoClient } from 'mongodb'
+import { supabase } from '../../../lib/supabase'
 import { v4 as uuidv4 } from 'uuid'
-
-let client
-let db
-
-async function connectDB() {
-  if (!client) {
-    client = new MongoClient(process.env.MONGO_URL)
-    await client.connect()
-    db = client.db('trx-mining')
-  }
-  // Ensure db is properly initialized
-  if (!db) {
-    db = client.db('trx-mining')
-  }
-  return db
-}
 
 function handleCORS(response) {
   response.headers.set('Access-Control-Allow-Origin', '*')
@@ -65,9 +49,58 @@ const MINING_NODES = [
   }
 ]
 
+// Helper function to verify TRX transaction using Trongrid API
+async function verifyTRXTransaction(transactionHash, expectedAmount, expectedToAddress) {
+  try {
+    const response = await fetch(`https://api.trongrid.io/v1/transactions/${transactionHash}`, {
+      headers: {
+        'TRON-PRO-API-KEY': process.env.TRONGRID_API_KEY
+      }
+    })
+    
+    if (!response.ok) {
+      return { valid: false, error: 'Transaction not found' }
+    }
+    
+    const data = await response.json()
+    
+    // Check if transaction exists and is successful
+    if (!data.ret || data.ret.length === 0 || data.ret[0].contractRet !== 'SUCCESS') {
+      return { valid: false, error: 'Transaction failed or not found' }
+    }
+    
+    // Check contract details for TRX transfer
+    const contract = data.raw_data?.contract?.[0]
+    if (contract?.type !== 'TransferContract') {
+      return { valid: false, error: 'Not a TRX transfer transaction' }
+    }
+    
+    const transferData = contract.parameter.value
+    const amount = transferData.amount / 1000000 // Convert from sun to TRX
+    const toAddress = transferData.to_address
+    
+    // Verify amount and recipient address
+    if (amount !== expectedAmount) {
+      return { valid: false, error: `Amount mismatch. Expected: ${expectedAmount} TRX, Got: ${amount} TRX` }
+    }
+    
+    // Convert base58 address for comparison
+    const TronWeb = require('tronweb')
+    const toAddressBase58 = TronWeb.address.fromHex(toAddress)
+    
+    if (toAddressBase58 !== expectedToAddress) {
+      return { valid: false, error: 'Recipient address mismatch' }
+    }
+    
+    return { valid: true, amount, toAddress: toAddressBase58 }
+  } catch (error) {
+    console.error('TRX verification error:', error)
+    return { valid: false, error: 'Failed to verify transaction' }
+  }
+}
+
 export async function GET(request) {
   try {
-    const db = await connectDB()
     const url = new URL(request.url)
     const pathname = url.pathname.replace('/api', '')
 
@@ -96,13 +129,21 @@ export async function GET(request) {
     }
 
     if (pathname === '/withdrawals') {
-      const mockWithdrawals = [
-        { username: 'user123', amount: 150, timestamp: new Date(Date.now() - 1000 * 60 * 5) },
-        { username: 'miner456', amount: 2500, timestamp: new Date(Date.now() - 1000 * 60 * 10) },
-        { username: 'crypto789', amount: 875, timestamp: new Date(Date.now() - 1000 * 60 * 15) },
-        { username: 'trx001', amount: 1200, timestamp: new Date(Date.now() - 1000 * 60 * 20) },
-        { username: 'node999', amount: 450, timestamp: new Date(Date.now() - 1000 * 60 * 25) },
-      ]
+      // Generate mock live withdrawal data
+      const generateMockWithdrawal = () => {
+        const usernames = ['user123', 'miner456', 'crypto789', 'trx001', 'node999', 'btc_lover', 'eth_fan', 'doge_master', 'ada_holder', 'sol_trader']
+        const amounts = [25, 50, 75, 100, 150, 200, 250, 500, 750, 1000, 1250, 1500, 2000, 2500, 5000, 7500, 10000]
+        
+        return {
+          username: usernames[Math.floor(Math.random() * usernames.length)],
+          amount: amounts[Math.floor(Math.random() * amounts.length)],
+          timestamp: new Date(Date.now() - Math.random() * 60 * 60 * 1000) // Random time within last hour
+        }
+      }
+
+      const mockWithdrawals = Array.from({ length: 5 }, generateMockWithdrawal)
+        .sort((a, b) => b.timestamp - a.timestamp) // Sort by newest first
+
       return handleCORS(NextResponse.json({ withdrawals: mockWithdrawals }))
     }
 
@@ -116,7 +157,6 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    const db = await connectDB()
     const url = new URL(request.url)
     const pathname = url.pathname.replace('/api', '')
     const body = await request.json()
@@ -129,7 +169,12 @@ export async function POST(request) {
       }
 
       // Check if username already exists
-      const existingUser = await db.collection('users').findOne({ username })
+      const { data: existingUser, error: checkError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('username', username)
+        .single()
+
       if (existingUser) {
         return handleCORS(NextResponse.json({ error: 'Username already exists' }, { status: 400 }))
       }
@@ -142,31 +187,48 @@ export async function POST(request) {
         username,
         password, // In production, this should be hashed
         email: `${username}@trxmining.com`,
-        mineBalance: 25, // Signup bonus
-        referralBalance: 0,
-        totalReferrals: 0,
-        validReferrals: 0,
-        referralCode: userReferralCode,
-        hasActiveMining: false,
-        hasBoughtNode4: false,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        mine_balance: 25, // Signup bonus
+        referral_balance: 0,
+        total_referrals: 0,
+        valid_referrals: 0,
+        referral_code: userReferralCode,
+        has_active_mining: false,
+        has_bought_node4: false
       }
 
-      await db.collection('users').insertOne(newUser)
+      const { data: userData, error: insertError } = await supabase
+        .from('users')
+        .insert([newUser])
+        .select()
+        .single()
+
+      if (insertError) {
+        console.error('User creation error:', insertError)
+        return handleCORS(NextResponse.json({ error: 'Failed to create user' }, { status: 500 }))
+      }
 
       // Handle referral if provided
       if (referralCode && referralCode.trim() !== '') {
-        const referrer = await db.collection('users').findOne({ referralCode: referralCode.trim() })
-        if (referrer) {
-          await db.collection('referrals').insertOne({
-            id: uuidv4(),
-            referrerId: referrer.id,
-            referredId: userId,
-            referralCode: referralCode.trim(),
-            isValid: false,
-            createdAt: new Date()
-          })
+        const { data: referrer, error: referrerError } = await supabase
+          .from('users')
+          .select('id')
+          .eq('referral_code', referralCode.trim())
+          .single()
+
+        if (referrer && !referrerError) {
+          const { error: referralError } = await supabase
+            .from('referrals')
+            .insert([{
+              id: uuidv4(),
+              referrer_id: referrer.id,
+              referred_id: userId,
+              referral_code: referralCode.trim(),
+              is_valid: false
+            }])
+
+          if (referralError) {
+            console.error('Referral creation error:', referralError)
+          }
         }
       }
 
@@ -183,8 +245,14 @@ export async function POST(request) {
         return handleCORS(NextResponse.json({ error: 'Username and password are required' }, { status: 400 }))
       }
 
-      const user = await db.collection('users').findOne({ username, password })
-      if (!user) {
+      const { data: user, error } = await supabase
+        .from('users')
+        .select('id, username, email')
+        .eq('username', username)
+        .eq('password', password)
+        .single()
+
+      if (error || !user) {
         return handleCORS(NextResponse.json({ error: 'Invalid credentials' }, { status: 401 }))
       }
 
@@ -195,20 +263,39 @@ export async function POST(request) {
     }
 
     if (pathname === '/user/profile') {
-      // This would normally check authentication, but for now we'll use the user from the request
       const { userId } = body
       
       if (!userId) {
         return handleCORS(NextResponse.json({ error: 'User ID required' }, { status: 400 }))
       }
 
-      let user = await db.collection('users').findOne({ id: userId })
+      const { data: user, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .single()
       
-      if (!user) {
+      if (error || !user) {
         return handleCORS(NextResponse.json({ error: 'User not found' }, { status: 404 }))
       }
       
-      return handleCORS(NextResponse.json({ user }))
+      // Convert snake_case to camelCase for frontend compatibility
+      const userProfile = {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        mineBalance: parseFloat(user.mine_balance),
+        referralBalance: parseFloat(user.referral_balance),
+        totalReferrals: user.total_referrals,
+        validReferrals: user.valid_referrals,
+        referralCode: user.referral_code,
+        hasActiveMining: user.has_active_mining,
+        hasBoughtNode4: user.has_bought_node4,
+        createdAt: user.created_at,
+        updatedAt: user.updated_at
+      }
+      
+      return handleCORS(NextResponse.json({ user: userProfile }))
     }
 
     if (pathname === '/user/nodes') {
@@ -218,13 +305,22 @@ export async function POST(request) {
         return handleCORS(NextResponse.json({ error: 'User ID required' }, { status: 400 }))
       }
 
-      const userNodes = await db.collection('user_nodes').find({ userId }).toArray()
+      const { data: userNodes, error } = await supabase
+        .from('user_nodes')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
       
+      if (error) {
+        console.error('User nodes fetch error:', error)
+        return handleCORS(NextResponse.json({ error: 'Failed to fetch user nodes' }, { status: 500 }))
+      }
+
       // Update mining progress for active nodes
       const now = new Date()
       const updatedNodes = userNodes.map(node => {
         if (node.status === 'running') {
-          const elapsed = now - new Date(node.startDate)
+          const elapsed = now - new Date(node.start_date)
           const totalDuration = node.duration * 24 * 60 * 60 * 1000 // Convert days to milliseconds
           const progress = Math.min(100, (elapsed / totalDuration) * 100)
           
@@ -235,7 +331,22 @@ export async function POST(request) {
             node.progress = progress
           }
         }
-        return node
+        
+        // Convert snake_case to camelCase for frontend compatibility
+        return {
+          id: node.id,
+          userId: node.user_id,
+          nodeId: node.node_id,
+          transactionHash: node.transaction_hash,
+          status: node.status,
+          progress: parseFloat(node.progress),
+          startDate: node.start_date,
+          endDate: node.end_date,
+          miningAmount: parseFloat(node.mining_amount),
+          dailyMining: parseFloat(node.daily_mining),
+          duration: node.duration,
+          createdAt: node.created_at
+        }
       })
 
       return handleCORS(NextResponse.json({ nodes: updatedNodes }))
@@ -248,8 +359,29 @@ export async function POST(request) {
         return handleCORS(NextResponse.json({ error: 'User ID required' }, { status: 400 }))
       }
 
-      const referrals = await db.collection('referrals').find({ referrerId: userId }).toArray()
-      return handleCORS(NextResponse.json({ referrals }))
+      const { data: referrals, error } = await supabase
+        .from('referrals')
+        .select('*')
+        .eq('referrer_id', userId)
+        .order('created_at', { ascending: false })
+      
+      if (error) {
+        console.error('Referrals fetch error:', error)
+        return handleCORS(NextResponse.json({ error: 'Failed to fetch referrals' }, { status: 500 }))
+      }
+
+      // Convert snake_case to camelCase for frontend compatibility
+      const formattedReferrals = referrals.map(referral => ({
+        id: referral.id,
+        referrerId: referral.referrer_id,
+        referredId: referral.referred_id,
+        referralCode: referral.referral_code,
+        isValid: referral.is_valid,
+        rewardPaid: referral.reward_paid,
+        createdAt: referral.created_at
+      }))
+
+      return handleCORS(NextResponse.json({ referrals: formattedReferrals }))
     }
 
     if (pathname === '/nodes/purchase') {
@@ -264,56 +396,120 @@ export async function POST(request) {
         return handleCORS(NextResponse.json({ error: 'Invalid node' }, { status: 400 }))
       }
 
-      // For now, we'll skip real TRX verification and just check transaction hash format
       if (!transactionHash || transactionHash.length < 10) {
         return handleCORS(NextResponse.json({ error: 'Invalid transaction hash' }, { status: 400 }))
       }
 
+      // Verify TRX transaction using Trongrid API
+      const TRX_RECEIVE_ADDRESS = 'TFNHcYdhEq5sgjaWPdR1Gnxgzu3RUKncwu'
+      const verification = await verifyTRXTransaction(transactionHash, node.price, TRX_RECEIVE_ADDRESS)
+      
+      if (!verification.valid) {
+        return handleCORS(NextResponse.json({ error: verification.error }, { status: 400 }))
+      }
+
       // Check if user already has this node running
-      const existingNode = await db.collection('user_nodes').findOne({ 
-        userId, 
-        nodeId, 
-        status: 'running' 
-      })
+      const { data: existingNode, error: checkError } = await supabase
+        .from('user_nodes')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('node_id', nodeId)
+        .eq('status', 'running')
+        .single()
       
       if (existingNode) {
         return handleCORS(NextResponse.json({ error: 'You already have this node running' }, { status: 400 }))
       }
 
-      const userNode = {
-        id: uuidv4(),
-        userId,
-        nodeId,
-        transactionHash,
-        status: 'running',
-        progress: 0,
-        startDate: new Date(),
-        endDate: new Date(Date.now() + node.duration * 24 * 60 * 60 * 1000),
-        miningAmount: node.mining,
-        dailyMining: node.mining / node.duration,
-        createdAt: new Date()
+      // Check if transaction hash is already used
+      const { data: usedTransaction, error: txError } = await supabase
+        .from('user_nodes')
+        .select('id')
+        .eq('transaction_hash', transactionHash)
+        .single()
+
+      if (usedTransaction) {
+        return handleCORS(NextResponse.json({ error: 'Transaction hash already used' }, { status: 400 }))
       }
 
-      await db.collection('user_nodes').insertOne(userNode)
+      const userNode = {
+        id: uuidv4(),
+        user_id: userId,
+        node_id: nodeId,
+        transaction_hash: transactionHash,
+        status: 'running',
+        progress: 0,
+        start_date: new Date().toISOString(),
+        end_date: new Date(Date.now() + node.duration * 24 * 60 * 60 * 1000).toISOString(),
+        mining_amount: node.mining,
+        daily_mining: node.mining / node.duration,
+        duration: node.duration
+      }
+
+      const { data: nodeData, error: insertError } = await supabase
+        .from('user_nodes')
+        .insert([userNode])
+        .select()
+        .single()
+
+      if (insertError) {
+        console.error('Node purchase error:', insertError)
+        return handleCORS(NextResponse.json({ error: 'Failed to purchase node' }, { status: 500 }))
+      }
 
       // Update user's mining status
       const updateData = { 
-        hasActiveMining: true,
-        updatedAt: new Date()
+        has_active_mining: true,
+        updated_at: new Date().toISOString()
       }
       
       if (nodeId === 'node4') {
-        updateData.hasBoughtNode4 = true
+        updateData.has_bought_node4 = true
       }
 
-      await db.collection('users').updateOne(
-        { id: userId },
-        { $set: updateData }
-      )
+      const { error: updateError } = await supabase
+        .from('users')
+        .update(updateData)
+        .eq('id', userId)
+
+      if (updateError) {
+        console.error('User update error:', updateError)
+      }
+
+      // Check if this user was referred and update referral status
+      const { data: referral, error: referralError } = await supabase
+        .from('referrals')
+        .select('*')
+        .eq('referred_id', userId)
+        .eq('is_valid', false)
+        .single()
+
+      if (referral && !referralError) {
+        // Mark referral as valid and pay reward
+        const { error: updateReferralError } = await supabase
+          .from('referrals')
+          .update({ is_valid: true, reward_paid: true })
+          .eq('id', referral.id)
+
+        if (!updateReferralError) {
+          // Add 50 TRX to referrer's balance
+          const { error: rewardError } = await supabase
+            .from('users')
+            .update({ 
+              referral_balance: supabase.raw('referral_balance + 50'),
+              valid_referrals: supabase.raw('valid_referrals + 1')
+            })
+            .eq('id', referral.referrer_id)
+
+          if (rewardError) {
+            console.error('Referral reward error:', rewardError)
+          }
+        }
+      }
 
       return handleCORS(NextResponse.json({ 
-        message: 'Node purchased successfully!',
-        node: userNode
+        message: 'Node purchased successfully! Transaction verified.',
+        node: nodeData
       }))
     }
 
@@ -324,8 +520,13 @@ export async function POST(request) {
         return handleCORS(NextResponse.json({ error: 'User ID required' }, { status: 400 }))
       }
 
-      const user = await db.collection('users').findOne({ id: userId })
-      if (!user) {
+      const { data: user, error: userError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .single()
+
+      if (userError || !user) {
         return handleCORS(NextResponse.json({ error: 'User not found' }, { status: 404 }))
       }
 
@@ -334,22 +535,38 @@ export async function POST(request) {
           return handleCORS(NextResponse.json({ error: 'Minimum withdrawal is 25 TRX' }, { status: 400 }))
         }
         
-        if (user.mineBalance < amount) {
+        if (parseFloat(user.mine_balance) < amount) {
           return handleCORS(NextResponse.json({ error: 'Insufficient balance' }, { status: 400 }))
         }
 
-        if (!user.hasActiveMining) {
+        if (!user.has_active_mining) {
           return handleCORS(NextResponse.json({ error: 'You must buy a mining node first' }, { status: 400 }))
         }
 
         // Process withdrawal
-        await db.collection('users').updateOne(
-          { id: userId },
-          { 
-            $inc: { mineBalance: -amount },
-            $set: { updatedAt: new Date() }
-          }
-        )
+        const { error: withdrawError } = await supabase
+          .from('users')
+          .update({ 
+            mine_balance: parseFloat(user.mine_balance) - amount,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', userId)
+
+        if (withdrawError) {
+          console.error('Mine withdrawal error:', withdrawError)
+          return handleCORS(NextResponse.json({ error: 'Withdrawal failed' }, { status: 500 }))
+        }
+
+        // Record withdrawal
+        await supabase
+          .from('withdrawals')
+          .insert([{
+            id: uuidv4(),
+            user_id: userId,
+            type: 'mine',
+            amount: amount,
+            status: 'completed'
+          }])
 
         return handleCORS(NextResponse.json({ message: 'Mine balance withdrawal successful!' }))
       }
@@ -359,22 +576,38 @@ export async function POST(request) {
           return handleCORS(NextResponse.json({ error: 'Minimum withdrawal is 50 TRX' }, { status: 400 }))
         }
 
-        if (user.referralBalance < amount) {
+        if (parseFloat(user.referral_balance) < amount) {
           return handleCORS(NextResponse.json({ error: 'Insufficient balance' }, { status: 400 }))
         }
 
-        if (!user.hasBoughtNode4) {
+        if (!user.has_bought_node4) {
           return handleCORS(NextResponse.json({ error: 'You must buy Node 4 (1024 GB) first' }, { status: 400 }))
         }
 
         // Process withdrawal
-        await db.collection('users').updateOne(
-          { id: userId },
-          { 
-            $inc: { referralBalance: -amount },
-            $set: { updatedAt: new Date() }
-          }
-        )
+        const { error: withdrawError } = await supabase
+          .from('users')
+          .update({ 
+            referral_balance: parseFloat(user.referral_balance) - amount,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', userId)
+
+        if (withdrawError) {
+          console.error('Referral withdrawal error:', withdrawError)
+          return handleCORS(NextResponse.json({ error: 'Withdrawal failed' }, { status: 500 }))
+        }
+
+        // Record withdrawal
+        await supabase
+          .from('withdrawals')
+          .insert([{
+            id: uuidv4(),
+            user_id: userId,
+            type: 'referral',
+            amount: amount,
+            status: 'completed'
+          }])
 
         return handleCORS(NextResponse.json({ message: 'Referral balance withdrawal successful!' }))
       }
