@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 """
-Backend API Testing Suite for TRX Mining Node Website
-Tests all API endpoints including authentication, mining nodes, user profile, referrals, and withdrawals.
+Enhanced TRX Mining Platform Backend Testing Suite
+Tests all enhanced features including TRX verification, security, database, and admin endpoints
 """
 
 import requests
 import json
 import time
+import random
+import string
 import uuid
 from datetime import datetime
 
@@ -17,8 +19,8 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-# Use internal URL for testing since external has routing issues
-BASE_URL = "http://localhost:3000/api"
+# Use external URL for testing enhanced features
+BASE_URL = "https://5481a26b-369b-435e-9fcf-98f6949ec90d.preview.emergentagent.com/api"
 
 class TRXMiningAPITester:
     def __init__(self):
