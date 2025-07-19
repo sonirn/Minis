@@ -51,53 +51,112 @@ const MINING_NODES = [
   }
 ]
 
-// Helper function to verify TRX transaction using Trongrid API
-async function verifyTRXTransaction(transactionHash, expectedAmount, expectedToAddress) {
+// Initialize enhanced services
+const trxVerifier = new EnhancedTRXVerifier()
+
+// Initialize database on first API call
+let dbInitialized = false
+async function ensureDbInitialized() {
+  if (!dbInitialized) {
+    await dbInitializer.initializeDatabase()
+    dbInitialized = true
+  }
+}
+
+// Enhanced rate limiting and security
+const requestCounts = new Map()
+const MAX_REQUESTS_PER_MINUTE = 60
+const BLOCKED_IPS = new Set()
+
+function checkRateLimit(ip) {
+  const now = Date.now()
+  const windowStart = Math.floor(now / 60000) * 60000 // 1-minute window
+  const key = `${ip}:${windowStart}`
+  
+  const count = requestCounts.get(key) || 0
+  requestCounts.set(key, count + 1)
+  
+  // Clean old entries
+  for (const [k] of requestCounts) {
+    if (k.split(':')[1] < windowStart - 60000) {
+      requestCounts.delete(k)
+    }
+  }
+  
+  if (count >= MAX_REQUESTS_PER_MINUTE) {
+    BLOCKED_IPS.add(ip)
+    return false
+  }
+  
+  return true
+}
+
+// Enhanced security headers
+function enhanceSecurityHeaders(response) {
+  response.headers.set('X-Content-Type-Options', 'nosniff')
+  response.headers.set('X-Frame-Options', 'DENY')
+  response.headers.set('X-XSS-Protection', '1; mode=block')
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+  response.headers.set('Content-Security-Policy', "default-src 'self'")
+  return response
+}
+
+// Enhanced input validation
+function validateInput(data, requiredFields) {
+  const errors = []
+  
+  for (const field of requiredFields) {
+    if (!data[field] || data[field].toString().trim() === '') {
+      errors.push(`${field} is required`)
+    }
+  }
+  
+  // Additional validation for specific fields
+  if (data.username && (data.username.length < 3 || data.username.length > 50)) {
+    errors.push('Username must be between 3 and 50 characters')
+  }
+  
+  if (data.password && data.password.length < 6) {
+    errors.push('Password must be at least 6 characters')
+  }
+  
+  if (data.transactionHash && !/^[a-fA-F0-9]{64}$/.test(data.transactionHash)) {
+    errors.push('Invalid transaction hash format')
+  }
+  
+  if (data.amount && (isNaN(data.amount) || data.amount <= 0)) {
+    errors.push('Amount must be a positive number')
+  }
+  
+  return errors
+}
+
+// Enhanced transaction verification with comprehensive logging
+async function verifyTRXTransactionEnhanced(transactionHash, expectedAmount, expectedToAddress, userId = null) {
   try {
-    const response = await fetch(`https://api.trongrid.io/v1/transactions/${transactionHash}`, {
-      headers: {
-        'TRON-PRO-API-KEY': process.env.TRONGRID_API_KEY
-      }
-    })
+    console.log(`Starting TRX verification for hash: ${transactionHash}`)
     
-    if (!response.ok) {
-      return { valid: false, error: 'Transaction not found' }
+    const verification = await trxVerifier.verifyTransaction(
+      transactionHash, 
+      expectedAmount, 
+      expectedToAddress, 
+      userId
+    )
+    
+    console.log(`TRX verification result for ${transactionHash}:`, verification.valid ? 'SUCCESS' : 'FAILED')
+    
+    if (!verification.valid) {
+      console.log(`TRX verification error: ${verification.error}`)
     }
     
-    const data = await response.json()
-    
-    // Check if transaction exists and is successful
-    if (!data.ret || data.ret.length === 0 || data.ret[0].contractRet !== 'SUCCESS') {
-      return { valid: false, error: 'Transaction failed or not found' }
-    }
-    
-    // Check contract details for TRX transfer
-    const contract = data.raw_data?.contract?.[0]
-    if (contract?.type !== 'TransferContract') {
-      return { valid: false, error: 'Not a TRX transfer transaction' }
-    }
-    
-    const transferData = contract.parameter.value
-    const amount = transferData.amount / 1000000 // Convert from sun to TRX
-    const toAddress = transferData.to_address
-    
-    // Verify amount and recipient address
-    if (amount !== expectedAmount) {
-      return { valid: false, error: `Amount mismatch. Expected: ${expectedAmount} TRX, Got: ${amount} TRX` }
-    }
-    
-    // Convert base58 address for comparison
-    const TronWeb = require('tronweb')
-    const toAddressBase58 = TronWeb.address.fromHex(toAddress)
-    
-    if (toAddressBase58 !== expectedToAddress) {
-      return { valid: false, error: 'Recipient address mismatch' }
-    }
-    
-    return { valid: true, amount, toAddress: toAddressBase58 }
+    return verification
   } catch (error) {
-    console.error('TRX verification error:', error)
-    return { valid: false, error: 'Failed to verify transaction' }
+    console.error('Enhanced TRX verification error:', error)
+    return {
+      valid: false,
+      error: 'Transaction verification service error',
+      details: error.message
+    }
   }
 }
 
