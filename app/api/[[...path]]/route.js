@@ -204,6 +204,17 @@ export async function POST(request) {
 
       if (insertError) {
         console.error('User creation error:', insertError)
+        console.error('Full error details:', JSON.stringify(insertError, null, 2))
+        
+        // If table doesn't exist, try to create it
+        if (insertError.message && insertError.message.includes('does not exist')) {
+          console.log('Attempting to create users table...')
+          // For now, return a more specific error
+          return handleCORS(NextResponse.json({ 
+            error: 'Database tables not initialized. Please contact administrator.' 
+          }, { status: 500 }))
+        }
+        
         return handleCORS(NextResponse.json({ error: 'Failed to create user' }, { status: 500 }))
       }
 
