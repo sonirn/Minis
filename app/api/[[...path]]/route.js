@@ -494,63 +494,76 @@ export async function POST(request) {
     if (pathname === '/nodes/purchase') {
       const { nodeId, transactionHash, userId } = body
       
-      if (!userId) {
-        return handleCORS(NextResponse.json({ error: 'User ID required' }, { status: 400 }))
+      // Enhanced input validation
+      const validationErrors = validateInput(body, ['nodeId', 'transactionHash', 'userId'])
+      if (validationErrors.length > 0) {
+        return enhanceSecurityHeaders(handleCORS(NextResponse.json({ 
+          error: 'Validation failed', 
+          details: validationErrors 
+        }, { status: 400 })))
       }
 
       const node = MINING_NODES.find(n => n.id === nodeId)
       if (!node) {
-        return handleCORS(NextResponse.json({ error: 'Invalid node' }, { status: 400 }))
+        return enhanceSecurityHeaders(handleCORS(NextResponse.json({ error: 'Invalid mining node' }, { status: 400 })))
       }
 
-      if (!transactionHash || transactionHash.length < 10) {
-        return handleCORS(NextResponse.json({ error: 'Invalid transaction hash' }, { status: 400 }))
-      }
+      console.log(`Processing node purchase: ${nodeId} for user: ${userId}`)
 
-      // Verify TRX transaction using Trongrid API
+      // Enhanced TRX transaction verification
       const TRX_RECEIVE_ADDRESS = 'TFNHcYdhEq5sgjaWPdR1Gnxgzu3RUKncwu'
-      const verification = await verifyTRXTransaction(transactionHash, node.price, TRX_RECEIVE_ADDRESS)
+      const verification = await verifyTRXTransactionEnhanced(
+        transactionHash, 
+        node.price, 
+        TRX_RECEIVE_ADDRESS, 
+        userId
+      )
       
       if (!verification.valid) {
-        return handleCORS(NextResponse.json({ error: verification.error }, { status: 400 }))
+        console.log(`Transaction verification failed for ${transactionHash}: ${verification.error}`)
+        return enhanceSecurityHeaders(handleCORS(NextResponse.json({ 
+          error: verification.error,
+          details: verification.details || 'Transaction verification failed'
+        }, { status: 400 })))
       }
 
-      // Check if user already has this node running
-      const { data: existingNode, error: checkError } = await supabase
+      console.log(`Transaction verified successfully: ${transactionHash}`)
+
+      // Check if user already has this node running (enhanced check)
+      const { data: existingActiveNode } = await supabase
         .from('user_nodes')
-        .select('id')
+        .select('id, status, created_at')
         .eq('user_id', userId)
         .eq('node_id', nodeId)
-        .eq('status', 'running')
-        .single()
+        .in('status', ['pending', 'running'])
+        .order('created_at', { ascending: false })
+        .limit(1)
       
-      if (existingNode) {
-        return handleCORS(NextResponse.json({ error: 'You already have this node running' }, { status: 400 }))
+      if (existingActiveNode && existingActiveNode.length > 0) {
+        return enhanceSecurityHeaders(handleCORS(NextResponse.json({ 
+          error: 'You already have an active node of this type',
+          details: `Status: ${existingActiveNode[0].status}, Created: ${new Date(existingActiveNode[0].created_at).toLocaleString()}`
+        }, { status: 400 })))
       }
 
-      // Check if transaction hash is already used
-      const { data: usedTransaction, error: txError } = await supabase
-        .from('user_nodes')
-        .select('id')
-        .eq('transaction_hash', transactionHash)
-        .single()
-
-      if (usedTransaction) {
-        return handleCORS(NextResponse.json({ error: 'Transaction hash already used' }, { status: 400 }))
-      }
-
+      // Enhanced user node creation with better tracking
       const userNode = {
         id: uuidv4(),
         user_id: userId,
         node_id: nodeId,
         transaction_hash: transactionHash,
+        transaction_verified: true,
+        transaction_amount: node.price,
+        transaction_verified_at: new Date().toISOString(),
         status: 'running',
         progress: 0,
         start_date: new Date().toISOString(),
         end_date: new Date(Date.now() + node.duration * 24 * 60 * 60 * 1000).toISOString(),
         mining_amount: node.mining,
         daily_mining: node.mining / node.duration,
-        duration: node.duration
+        duration: node.duration,
+        total_mined: 0,
+        last_mining_update: new Date().toISOString()
       }
 
       const { data: nodeData, error: insertError } = await supabase
@@ -560,11 +573,16 @@ export async function POST(request) {
         .single()
 
       if (insertError) {
-        console.error('Node purchase error:', insertError)
-        return handleCORS(NextResponse.json({ error: 'Failed to purchase node' }, { status: 500 }))
+        console.error('Node purchase database error:', insertError)
+        return enhanceSecurityHeaders(handleCORS(NextResponse.json({ 
+          error: 'Failed to create mining node',
+          details: 'Database operation failed'
+        }, { status: 500 })))
       }
 
-      // Update user's mining status
+      console.log(`Node created successfully: ${nodeData.id}`)
+
+      // Update user's mining status with enhanced tracking
       const updateData = { 
         has_active_mining: true,
         updated_at: new Date().toISOString()
@@ -583,41 +601,28 @@ export async function POST(request) {
         console.error('User update error:', updateError)
       }
 
-      // Check if this user was referred and update referral status
-      const { data: referral, error: referralError } = await supabase
-        .from('referrals')
-        .select('*')
-        .eq('referred_id', userId)
-        .eq('is_valid', false)
-        .single()
+      // Enhanced referral processing
+      await processReferralReward(userId)
 
-      if (referral && !referralError) {
-        // Mark referral as valid and pay reward
-        const { error: updateReferralError } = await supabase
-          .from('referrals')
-          .update({ is_valid: true, reward_paid: true })
-          .eq('id', referral.id)
+      console.log(`Node purchase completed successfully for user: ${userId}`)
 
-        if (!updateReferralError) {
-          // Add 50 TRX to referrer's balance
-          const { error: rewardError } = await supabase
-            .from('users')
-            .update({ 
-              referral_balance: supabase.raw('referral_balance + 50'),
-              valid_referrals: supabase.raw('valid_referrals + 1')
-            })
-            .eq('id', referral.referrer_id)
-
-          if (rewardError) {
-            console.error('Referral reward error:', rewardError)
-          }
+      return enhanceSecurityHeaders(handleCORS(NextResponse.json({ 
+        message: 'Mining node purchased and verified successfully!',
+        node: {
+          id: nodeData.id,
+          nodeId: nodeData.node_id,
+          status: nodeData.status,
+          startDate: nodeData.start_date,
+          endDate: nodeData.end_date,
+          miningAmount: nodeData.mining_amount,
+          dailyMining: nodeData.daily_mining
+        },
+        verification: {
+          verified: true,
+          amount: verification.amount,
+          timestamp: verification.blockTimestamp || new Date().toISOString()
         }
-      }
-
-      return handleCORS(NextResponse.json({ 
-        message: 'Node purchased successfully! Transaction verified.',
-        node: nodeData
-      }))
+      })))
     }
 
     if (pathname === '/withdraw') {
