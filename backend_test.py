@@ -311,22 +311,40 @@ class TRXMiningAPITester:
         """Test getting user profile with balances"""
         print("\n=== Testing User Profile ===")
         
+        # First create a user to get a valid userId
+        test_username = f"profiletest_{uuid.uuid4().hex[:8]}"
+        signup_data = {
+            "username": test_username,
+            "password": "testpassword123"
+        }
+        
         try:
-            response = self.session.get(f"{self.base_url}/user/profile")
+            # Create user first
+            signup_response = self.session.post(f"{self.base_url}/auth/signup", json=signup_data)
             
-            if response.status_code == 200:
-                data = response.json()
-                if 'user' in data:
-                    user = data['user']
-                    required_fields = ['id', 'username', 'mineBalance', 'referralBalance', 'referralCode']
-                    if all(field in user for field in required_fields):
-                        self.log_test("Get User Profile", True, "Successfully retrieved user profile", data)
+            if signup_response.status_code == 200:
+                signup_result = signup_response.json()
+                user_id = signup_result['user']['id']
+                
+                # Now test profile endpoint with userId
+                profile_data = {"userId": user_id}
+                response = self.session.post(f"{self.base_url}/user/profile", json=profile_data)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    if 'user' in data:
+                        user = data['user']
+                        required_fields = ['id', 'username', 'mineBalance', 'referralBalance', 'referralCode']
+                        if all(field in user for field in required_fields):
+                            self.log_test("Get User Profile", True, "Successfully retrieved user profile", data)
+                        else:
+                            self.log_test("Get User Profile", False, "User profile missing required fields", data)
                     else:
-                        self.log_test("Get User Profile", False, "User profile missing required fields", data)
+                        self.log_test("Get User Profile", False, "Invalid response structure", data)
                 else:
-                    self.log_test("Get User Profile", False, "Invalid response structure", data)
+                    self.log_test("Get User Profile", False, f"HTTP {response.status_code}", response.json())
             else:
-                self.log_test("Get User Profile", False, f"HTTP {response.status_code}", response.json())
+                self.log_test("Get User Profile", False, "Could not create test user", signup_response.json())
                 
         except Exception as e:
             self.log_test("Get User Profile", False, f"Request failed: {str(e)}")
