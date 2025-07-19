@@ -292,17 +292,35 @@ class TRXMiningAPITester:
         """Test getting user's active mining nodes"""
         print("\n=== Testing User Nodes - Get Active ===")
         
+        # First create a user to get a valid userId
+        test_username = f"nodestest_{uuid.uuid4().hex[:8]}"
+        signup_data = {
+            "username": test_username,
+            "password": "testpassword123"
+        }
+        
         try:
-            response = self.session.get(f"{self.base_url}/user/nodes")
+            # Create user first
+            signup_response = self.session.post(f"{self.base_url}/auth/signup", json=signup_data)
             
-            if response.status_code == 200:
-                data = response.json()
-                if 'nodes' in data and isinstance(data['nodes'], list):
-                    self.log_test("Get User Nodes", True, f"Successfully retrieved {len(data['nodes'])} user nodes", data)
+            if signup_response.status_code == 200:
+                signup_result = signup_response.json()
+                user_id = signup_result['user']['id']
+                
+                # Now test user nodes endpoint with userId
+                nodes_data = {"userId": user_id}
+                response = self.session.post(f"{self.base_url}/user/nodes", json=nodes_data)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    if 'nodes' in data and isinstance(data['nodes'], list):
+                        self.log_test("Get User Nodes", True, f"Successfully retrieved {len(data['nodes'])} user nodes", data)
+                    else:
+                        self.log_test("Get User Nodes", False, "Invalid response structure", data)
                 else:
-                    self.log_test("Get User Nodes", False, "Invalid response structure", data)
+                    self.log_test("Get User Nodes", False, f"HTTP {response.status_code}", response.json())
             else:
-                self.log_test("Get User Nodes", False, f"HTTP {response.status_code}", response.json())
+                self.log_test("Get User Nodes", False, "Could not create test user", signup_response.json())
                 
         except Exception as e:
             self.log_test("Get User Nodes", False, f"Request failed: {str(e)}")
