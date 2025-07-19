@@ -1,8 +1,23 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '../../../lib/supabase'
 import { v4 as uuidv4 } from 'uuid'
-import EnhancedTRXVerifier from '../../../lib/enhanced-trx-verifier'
-import dbInitializer from '../../../lib/database-initializer'
+// Import EnhancedTRXVerifier with error handling
+let EnhancedTRXVerifier = null
+let dbInitializer = null
+
+try {
+  const enhancedTrxModule = await import('../../../lib/enhanced-trx-verifier')
+  EnhancedTRXVerifier = enhancedTrxModule.default || enhancedTrxModule.EnhancedTRXVerifier
+} catch (error) {
+  console.error('Failed to import EnhancedTRXVerifier:', error.message)
+}
+
+try {
+  const dbModule = await import('../../../lib/database-initializer')
+  dbInitializer = dbModule.default
+} catch (error) {
+  console.error('Failed to import database-initializer:', error.message)
+}
 
 function handleCORS(response) {
   response.headers.set('Access-Control-Allow-Origin', '*')
