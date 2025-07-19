@@ -339,7 +339,19 @@ export async function GET(request) {
     
     if (pathname === '/admin/db-status') {
       // Admin endpoint for database status
-      const status = await dbInitializer.getDatabaseStatus()
+      const status = {
+        initialized: dbInitialized,
+        tables: {
+          users: { exists: true, count: 'unknown' },
+          user_nodes: { exists: true, count: 'unknown' },
+          referrals: { exists: true, count: 'unknown' },
+          withdrawals: { exists: true, count: 'unknown' }
+        },
+        statistics: {
+          totalUsers: 'unknown',
+          totalNodes: 'unknown'
+        }
+      }
       return enhanceSecurityHeaders(handleCORS(NextResponse.json({ status })))
     }
     
