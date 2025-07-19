@@ -347,15 +347,18 @@ backend:
 
   - task: "Admin Endpoints - Database Status and Verification Stats"
     implemented: true
-    working: false
+    working: true
     file: "app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "low"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: false
         agent: "main"
         comment: "Added admin endpoints for database status monitoring and TRX verification statistics. Provides insights into system health and transaction verification performance."
+      - working: true
+        agent: "testing"
+        comment: "Admin endpoints tested successfully. GET /api/admin/db-status returns database status with table information and statistics. GET /api/admin/verification-stats returns TRX verification statistics including success rates and counts."
 
 frontend:
   # Frontend testing not performed as per instructions
