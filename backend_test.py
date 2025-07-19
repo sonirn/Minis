@@ -371,17 +371,35 @@ class TRXMiningAPITester:
         """Test getting user's referrals"""
         print("\n=== Testing User Referrals ===")
         
+        # First create a user to get a valid userId
+        test_username = f"referralstest_{uuid.uuid4().hex[:8]}"
+        signup_data = {
+            "username": test_username,
+            "password": "testpassword123"
+        }
+        
         try:
-            response = self.session.get(f"{self.base_url}/user/referrals")
+            # Create user first
+            signup_response = self.session.post(f"{self.base_url}/auth/signup", json=signup_data)
             
-            if response.status_code == 200:
-                data = response.json()
-                if 'referrals' in data and isinstance(data['referrals'], list):
-                    self.log_test("Get User Referrals", True, f"Successfully retrieved {len(data['referrals'])} referrals", data)
+            if signup_response.status_code == 200:
+                signup_result = signup_response.json()
+                user_id = signup_result['user']['id']
+                
+                # Now test user referrals endpoint with userId
+                referrals_data = {"userId": user_id}
+                response = self.session.post(f"{self.base_url}/user/referrals", json=referrals_data)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    if 'referrals' in data and isinstance(data['referrals'], list):
+                        self.log_test("Get User Referrals", True, f"Successfully retrieved {len(data['referrals'])} referrals", data)
+                    else:
+                        self.log_test("Get User Referrals", False, "Invalid response structure", data)
                 else:
-                    self.log_test("Get User Referrals", False, "Invalid response structure", data)
+                    self.log_test("Get User Referrals", False, f"HTTP {response.status_code}", response.json())
             else:
-                self.log_test("Get User Referrals", False, f"HTTP {response.status_code}", response.json())
+                self.log_test("Get User Referrals", False, "Could not create test user", signup_response.json())
                 
         except Exception as e:
             self.log_test("Get User Referrals", False, f"Request failed: {str(e)}")
