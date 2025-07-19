@@ -15,8 +15,7 @@ console.log('📍 Connection string:', connectionString.replace(/:[^:@]*@/, ':**
 
 async function setupDatabase() {
   const client = new Client({
-    connectionString: connectionString,
-    ssl: connectionString.includes('sslmode=require') ? { rejectUnauthorized: false } : false
+    connectionString: connectionString
   })
 
   try {
