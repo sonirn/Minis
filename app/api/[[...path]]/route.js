@@ -162,57 +162,92 @@ async function verifyTRXTransactionEnhanced(transactionHash, expectedAmount, exp
 
 export async function GET(request) {
   try {
+    // Initialize database
+    await ensureDbInitialized()
+    
+    // Security checks
+    const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown'
+    
+    if (BLOCKED_IPS.has(ip)) {
+      return enhanceSecurityHeaders(NextResponse.json({ error: 'Access denied' }, { status: 429 }))
+    }
+    
+    if (!checkRateLimit(ip)) {
+      return enhanceSecurityHeaders(NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 }))
+    }
+    
     const url = new URL(request.url)
     const pathname = url.pathname.replace('/api', '')
 
+    // Enhanced logging
+    console.log(`GET request: ${pathname} from IP: ${ip}`)
+
     if (pathname === '/auth/user') {
-      // For now, return null to indicate no user is logged in
-      return handleCORS(NextResponse.json({ user: null }))
+      return enhanceSecurityHeaders(handleCORS(NextResponse.json({ user: null })))
     }
 
     if (pathname === '/nodes') {
-      return handleCORS(NextResponse.json({ nodes: MINING_NODES }))
+      return enhanceSecurityHeaders(handleCORS(NextResponse.json({ nodes: MINING_NODES })))
+    }
+    
+    if (pathname === '/admin/db-status') {
+      // Admin endpoint for database status
+      const status = await dbInitializer.getDatabaseStatus()
+      return enhanceSecurityHeaders(handleCORS(NextResponse.json({ status })))
+    }
+    
+    if (pathname === '/admin/verification-stats') {
+      // Admin endpoint for verification statistics
+      const stats = await trxVerifier.getVerificationStats()
+      return enhanceSecurityHeaders(handleCORS(NextResponse.json({ stats })))
     }
 
     if (pathname === '/user/profile') {
-      // This requires authentication - should be handled by frontend
-      return handleCORS(NextResponse.json({ error: 'User not authenticated' }, { status: 401 }))
+      return enhanceSecurityHeaders(handleCORS(NextResponse.json({ error: 'User not authenticated' }, { status: 401 })))
     }
 
     if (pathname === '/user/nodes') {
-      // This requires authentication - should be handled by frontend
-      return handleCORS(NextResponse.json({ error: 'User not authenticated' }, { status: 401 }))
+      return enhanceSecurityHeaders(handleCORS(NextResponse.json({ error: 'User not authenticated' }, { status: 401 })))
     }
 
     if (pathname === '/user/referrals') {
-      // This requires authentication - should be handled by frontend
-      return handleCORS(NextResponse.json({ error: 'User not authenticated' }, { status: 401 }))
+      return enhanceSecurityHeaders(handleCORS(NextResponse.json({ error: 'User not authenticated' }, { status: 401 })))
     }
 
     if (pathname === '/withdrawals') {
-      // Generate mock live withdrawal data
-      const generateMockWithdrawal = () => {
-        const usernames = ['user123', 'miner456', 'crypto789', 'trx001', 'node999', 'btc_lover', 'eth_fan', 'doge_master', 'ada_holder', 'sol_trader']
-        const amounts = [25, 50, 75, 100, 150, 200, 250, 500, 750, 1000, 1250, 1500, 2000, 2500, 5000, 7500, 10000]
+      // Enhanced mock withdrawal data with more realistic patterns
+      const generateEnhancedMockWithdrawal = () => {
+        const usernames = [
+          'CryptoMiner', 'TRXTrader', 'BlockchainPro', 'DigitalGold', 'CoinMaster',
+          'TronMiner', 'CryptoKing', 'BlockMiner', 'TRXExpert', 'CoinHunter',
+          'MiningPro', 'CryptoGuru', 'TronTrader', 'DigitalMiner', 'BlockExpert'
+        ]
+        
+        // More realistic withdrawal amounts based on mining node capabilities
+        const amounts = [25, 30, 45, 50, 75, 100, 125, 150, 200, 250, 300, 500, 750, 1000]
+        const timeOffsets = [5, 10, 15, 30, 45, 60, 120, 180] // minutes ago
         
         return {
+          id: uuidv4(),
           username: usernames[Math.floor(Math.random() * usernames.length)],
           amount: amounts[Math.floor(Math.random() * amounts.length)],
-          timestamp: new Date(Date.now() - Math.random() * 60 * 60 * 1000) // Random time within last hour
+          timestamp: new Date(Date.now() - timeOffsets[Math.floor(Math.random() * timeOffsets.length)] * 60 * 1000),
+          type: Math.random() > 0.7 ? 'referral' : 'mining',
+          status: 'completed'
         }
       }
 
-      const mockWithdrawals = Array.from({ length: 5 }, generateMockWithdrawal)
-        .sort((a, b) => b.timestamp - a.timestamp) // Sort by newest first
+      const mockWithdrawals = Array.from({ length: 8 }, generateEnhancedMockWithdrawal)
+        .sort((a, b) => b.timestamp - a.timestamp)
 
-      return handleCORS(NextResponse.json({ withdrawals: mockWithdrawals }))
+      return enhanceSecurityHeaders(handleCORS(NextResponse.json({ withdrawals: mockWithdrawals })))
     }
 
-    return handleCORS(NextResponse.json({ error: 'Not found' }, { status: 404 }))
+    return enhanceSecurityHeaders(handleCORS(NextResponse.json({ error: 'Endpoint not found' }, { status: 404 })))
 
   } catch (error) {
-    console.error('API Error:', error)
-    return handleCORS(NextResponse.json({ error: 'Internal server error' }, { status: 500 }))
+    console.error('GET API Error:', error)
+    return enhanceSecurityHeaders(handleCORS(NextResponse.json({ error: 'Internal server error' }, { status: 500 })))
   }
 }
 
