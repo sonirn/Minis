@@ -76,6 +76,9 @@ async function processSignupReferral(userId, referralCode) {
     console.error('Signup referral processing error:', error)
   }
 }
+
+// Enhanced referral processing function
+async function processReferralReward(userId) {
   try {
     console.log(`Processing referral reward for user: ${userId}`)
     
