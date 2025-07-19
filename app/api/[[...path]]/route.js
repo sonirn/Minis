@@ -312,26 +312,60 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
+    // Initialize database
+    await ensureDbInitialized()
+    
+    // Security checks
+    const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown'
+    
+    if (BLOCKED_IPS.has(ip)) {
+      return enhanceSecurityHeaders(NextResponse.json({ error: 'Access denied' }, { status: 429 }))
+    }
+    
+    if (!checkRateLimit(ip)) {
+      return enhanceSecurityHeaders(NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 }))
+    }
+    
     const url = new URL(request.url)
     const pathname = url.pathname.replace('/api', '')
-    const body = await request.json()
+    
+    let body
+    try {
+      body = await request.json()
+    } catch (error) {
+      return enhanceSecurityHeaders(handleCORS(NextResponse.json({ 
+        error: 'Invalid JSON in request body' 
+      }, { status: 400 })))
+    }
+
+    // Enhanced logging
+    console.log(`POST request: ${pathname} from IP: ${ip}`)
 
     if (pathname === '/auth/signup') {
       const { username, password, referralCode } = body
       
-      if (!username || !password) {
-        return handleCORS(NextResponse.json({ error: 'Username and password are required' }, { status: 400 }))
+      // Enhanced input validation
+      const validationErrors = validateInput(body, ['username', 'password'])
+      if (validationErrors.length > 0) {
+        return enhanceSecurityHeaders(handleCORS(NextResponse.json({ 
+          error: 'Validation failed', 
+          details: validationErrors 
+        }, { status: 400 })))
       }
 
-      // Check if username already exists
+      console.log(`User signup attempt: ${username}`)
+
+      // Check if username already exists with case-insensitive check
       const { data: existingUser, error: checkError } = await supabase
         .from('users')
-        .select('id')
-        .eq('username', username)
+        .select('id, username')
+        .ilike('username', username)
         .single()
 
       if (existingUser) {
-        return handleCORS(NextResponse.json({ error: 'Username already exists' }, { status: 400 }))
+        return enhanceSecurityHeaders(handleCORS(NextResponse.json({ 
+          error: 'Username already exists' 
+        }, { status: 400 })))
       }
 
       const userId = uuidv4()
@@ -339,16 +373,20 @@ export async function POST(request) {
       
       const newUser = {
         id: userId,
-        username,
+        username: username.trim(),
         password, // In production, this should be hashed
-        email: `${username}@trxmining.com`,
+        email: `${username.toLowerCase().trim()}@trxmining.com`,
         mine_balance: 25, // Signup bonus
         referral_balance: 0,
         total_referrals: 0,
         valid_referrals: 0,
         referral_code: userReferralCode,
         has_active_mining: false,
-        has_bought_node4: false
+        has_bought_node4: false,
+        is_active: true,
+        last_login_at: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       }
 
       const { data: userData, error: insertError } = await supabase
@@ -359,49 +397,33 @@ export async function POST(request) {
 
       if (insertError) {
         console.error('User creation error:', insertError)
-        console.error('Full error details:', JSON.stringify(insertError, null, 2))
         
-        // If table doesn't exist, try to create it
         if (insertError.message && insertError.message.includes('does not exist')) {
-          console.log('Attempting to create users table...')
-          // For now, return a more specific error
-          return handleCORS(NextResponse.json({ 
+          return enhanceSecurityHeaders(handleCORS(NextResponse.json({ 
             error: 'Database tables not initialized. Please contact administrator.' 
-          }, { status: 500 }))
+          }, { status: 500 })))
         }
         
-        return handleCORS(NextResponse.json({ error: 'Failed to create user' }, { status: 500 }))
+        return enhanceSecurityHeaders(handleCORS(NextResponse.json({ 
+          error: 'Failed to create user account' 
+        }, { status: 500 })))
       }
 
-      // Handle referral if provided
+      console.log(`User created successfully: ${userId}`)
+
+      // Enhanced referral handling
       if (referralCode && referralCode.trim() !== '') {
-        const { data: referrer, error: referrerError } = await supabase
-          .from('users')
-          .select('id')
-          .eq('referral_code', referralCode.trim())
-          .single()
-
-        if (referrer && !referrerError) {
-          const { error: referralError } = await supabase
-            .from('referrals')
-            .insert([{
-              id: uuidv4(),
-              referrer_id: referrer.id,
-              referred_id: userId,
-              referral_code: referralCode.trim(),
-              is_valid: false
-            }])
-
-          if (referralError) {
-            console.error('Referral creation error:', referralError)
-          }
-        }
+        await processSignupReferral(userId, referralCode.trim().toUpperCase())
       }
 
-      return handleCORS(NextResponse.json({ 
-        user: { id: userId, username, email: newUser.email },
-        message: 'Account created successfully! 25 TRX bonus added!'
-      }))
+      return enhanceSecurityHeaders(handleCORS(NextResponse.json({ 
+        user: { 
+          id: userId, 
+          username: username.trim(), 
+          email: newUser.email 
+        },
+        message: 'Account created successfully! 25 TRX welcome bonus added!'
+      })))
     }
 
     if (pathname === '/auth/signin') {
