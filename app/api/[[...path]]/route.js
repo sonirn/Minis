@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '../../../lib/supabase'
 import { v4 as uuidv4 } from 'uuid'
+import EnhancedTRXVerifier from '../../../lib/enhanced-trx-verifier'
+import dbInitializer from '../../../lib/database-initializer'
 
 function handleCORS(response) {
   response.headers.set('Access-Control-Allow-Origin', '*')
