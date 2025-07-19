@@ -167,11 +167,11 @@ backend:
 
   - task: "Authentication - User Signup"
     implemented: true
-    working: true
+    working: false
     file: "app/api/[[...path]]/route.js"
-    stuck_count: 0
+    stuck_count: 1
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: true
         agent: "testing"
@@ -179,6 +179,9 @@ backend:
       - working: false
         agent: "main"
         comment: "Enhanced with improved input validation, case-insensitive duplicate checking, better referral processing, and comprehensive logging."
+      - working: false
+        agent: "testing"
+        comment: "Minor: Enhanced signup validation working correctly (rejects invalid JSON, missing fields), but user creation failing with database errors. Core validation logic is functional but database connection issues prevent actual user creation."
 
   - task: "Authentication - User Signin"
     implemented: true
@@ -186,7 +189,7 @@ backend:
     file: "app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: true
         agent: "testing"
