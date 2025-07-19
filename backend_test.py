@@ -426,110 +426,115 @@ class TRXMiningAPITester:
         """Test withdrawal endpoints"""
         print("\n=== Testing Withdrawals ===")
         
-        # Test mine balance withdrawal - insufficient balance
-        mine_withdraw_data = {
-            "type": "mine",
-            "amount": 1000  # High amount to test insufficient balance
+        # First create a user to get a valid userId
+        test_username = f"withdrawtest_{uuid.uuid4().hex[:8]}"
+        signup_data = {
+            "username": test_username,
+            "password": "testpassword123"
         }
         
         try:
-            response = self.session.post(f"{self.base_url}/withdraw", json=mine_withdraw_data)
+            # Create user first
+            signup_response = self.session.post(f"{self.base_url}/auth/signup", json=signup_data)
             
-            if response.status_code == 400:
-                data = response.json()
-                if 'error' in data and ('Insufficient balance' in data['error'] or 'must buy a mining node' in data['error']):
-                    self.log_test("Withdraw Mine - Insufficient Balance", True, "Correctly rejected insufficient balance", data)
+            if signup_response.status_code == 200:
+                signup_result = signup_response.json()
+                user_id = signup_result['user']['id']
+                
+                # Test mine balance withdrawal - insufficient balance
+                mine_withdraw_data = {
+                    "type": "mine",
+                    "amount": 1000,  # High amount to test insufficient balance
+                    "userId": user_id
+                }
+                
+                response = self.session.post(f"{self.base_url}/withdraw", json=mine_withdraw_data)
+                
+                if response.status_code == 400:
+                    data = response.json()
+                    if 'error' in data and ('Insufficient balance' in data['error'] or 'must buy a mining node' in data['error']):
+                        self.log_test("Withdraw Mine - Insufficient Balance", True, "Correctly rejected insufficient balance", data)
+                    else:
+                        self.log_test("Withdraw Mine - Insufficient Balance", False, "Wrong error message", data)
                 else:
-                    self.log_test("Withdraw Mine - Insufficient Balance", False, "Wrong error message", data)
+                    self.log_test("Withdraw Mine - Insufficient Balance", False, f"Expected 400, got {response.status_code}", response.json())
+                
+                # Test mine balance withdrawal - minimum amount
+                mine_withdraw_small = {
+                    "type": "mine",
+                    "amount": 10,  # Below minimum
+                    "userId": user_id
+                }
+                
+                response = self.session.post(f"{self.base_url}/withdraw", json=mine_withdraw_small)
+                
+                if response.status_code == 400:
+                    data = response.json()
+                    if 'error' in data and 'Minimum withdrawal is 25 TRX' in data['error']:
+                        self.log_test("Withdraw Mine - Minimum Amount", True, "Correctly enforced minimum withdrawal", data)
+                    else:
+                        self.log_test("Withdraw Mine - Minimum Amount", False, "Wrong error message", data)
+                else:
+                    self.log_test("Withdraw Mine - Minimum Amount", False, f"Expected 400, got {response.status_code}", response.json())
+                
+                # Test referral balance withdrawal - insufficient balance
+                referral_withdraw_data = {
+                    "type": "referral",
+                    "amount": 1000,  # High amount to test insufficient balance
+                    "userId": user_id
+                }
+                
+                response = self.session.post(f"{self.base_url}/withdraw", json=referral_withdraw_data)
+                
+                if response.status_code == 400:
+                    data = response.json()
+                    if 'error' in data and ('Insufficient balance' in data['error'] or 'must buy Node 4' in data['error']):
+                        self.log_test("Withdraw Referral - Insufficient Balance", True, "Correctly rejected insufficient balance", data)
+                    else:
+                        self.log_test("Withdraw Referral - Insufficient Balance", False, "Wrong error message", data)
+                else:
+                    self.log_test("Withdraw Referral - Insufficient Balance", False, f"Expected 400, got {response.status_code}", response.json())
+                
+                # Test referral balance withdrawal - minimum amount
+                referral_withdraw_small = {
+                    "type": "referral",
+                    "amount": 25,  # Below minimum for referral
+                    "userId": user_id
+                }
+                
+                response = self.session.post(f"{self.base_url}/withdraw", json=referral_withdraw_small)
+                
+                if response.status_code == 400:
+                    data = response.json()
+                    if 'error' in data and 'Minimum withdrawal is 50 TRX' in data['error']:
+                        self.log_test("Withdraw Referral - Minimum Amount", True, "Correctly enforced minimum withdrawal", data)
+                    else:
+                        self.log_test("Withdraw Referral - Minimum Amount", False, "Wrong error message", data)
+                else:
+                    self.log_test("Withdraw Referral - Minimum Amount", False, f"Expected 400, got {response.status_code}", response.json())
+                
+                # Test invalid withdrawal type
+                invalid_withdraw_data = {
+                    "type": "invalid",
+                    "amount": 50,
+                    "userId": user_id
+                }
+                
+                response = self.session.post(f"{self.base_url}/withdraw", json=invalid_withdraw_data)
+                
+                if response.status_code == 400:
+                    data = response.json()
+                    if 'error' in data and 'Invalid withdrawal type' in data['error']:
+                        self.log_test("Withdraw - Invalid Type", True, "Correctly rejected invalid withdrawal type", data)
+                    else:
+                        self.log_test("Withdraw - Invalid Type", False, "Wrong error message", data)
+                else:
+                    self.log_test("Withdraw - Invalid Type", False, f"Expected 400, got {response.status_code}", response.json())
             else:
-                self.log_test("Withdraw Mine - Insufficient Balance", False, f"Expected 400, got {response.status_code}", response.json())
+                self.log_test("Withdraw - Setup", False, "Could not create test user", signup_response.json())
                 
         except Exception as e:
-            self.log_test("Withdraw Mine - Insufficient Balance", False, f"Request failed: {str(e)}")
-        
-        # Test mine balance withdrawal - minimum amount
-        mine_withdraw_small = {
-            "type": "mine",
-            "amount": 10  # Below minimum
-        }
-        
-        try:
-            response = self.session.post(f"{self.base_url}/withdraw", json=mine_withdraw_small)
-            
-            if response.status_code == 400:
-                data = response.json()
-                if 'error' in data and 'Minimum withdrawal is 25 TRX' in data['error']:
-                    self.log_test("Withdraw Mine - Minimum Amount", True, "Correctly enforced minimum withdrawal", data)
-                else:
-                    self.log_test("Withdraw Mine - Minimum Amount", False, "Wrong error message", data)
-            else:
-                self.log_test("Withdraw Mine - Minimum Amount", False, f"Expected 400, got {response.status_code}", response.json())
-                
-        except Exception as e:
-            self.log_test("Withdraw Mine - Minimum Amount", False, f"Request failed: {str(e)}")
-        
-        # Test referral balance withdrawal - insufficient balance
-        referral_withdraw_data = {
-            "type": "referral",
-            "amount": 1000  # High amount to test insufficient balance
-        }
-        
-        try:
-            response = self.session.post(f"{self.base_url}/withdraw", json=referral_withdraw_data)
-            
-            if response.status_code == 400:
-                data = response.json()
-                if 'error' in data and ('Insufficient balance' in data['error'] or 'must buy Node 4' in data['error']):
-                    self.log_test("Withdraw Referral - Insufficient Balance", True, "Correctly rejected insufficient balance", data)
-                else:
-                    self.log_test("Withdraw Referral - Insufficient Balance", False, "Wrong error message", data)
-            else:
-                self.log_test("Withdraw Referral - Insufficient Balance", False, f"Expected 400, got {response.status_code}", response.json())
-                
-        except Exception as e:
-            self.log_test("Withdraw Referral - Insufficient Balance", False, f"Request failed: {str(e)}")
-        
-        # Test referral balance withdrawal - minimum amount
-        referral_withdraw_small = {
-            "type": "referral",
-            "amount": 25  # Below minimum for referral
-        }
-        
-        try:
-            response = self.session.post(f"{self.base_url}/withdraw", json=referral_withdraw_small)
-            
-            if response.status_code == 400:
-                data = response.json()
-                if 'error' in data and 'Minimum withdrawal is 50 TRX' in data['error']:
-                    self.log_test("Withdraw Referral - Minimum Amount", True, "Correctly enforced minimum withdrawal", data)
-                else:
-                    self.log_test("Withdraw Referral - Minimum Amount", False, "Wrong error message", data)
-            else:
-                self.log_test("Withdraw Referral - Minimum Amount", False, f"Expected 400, got {response.status_code}", response.json())
-                
-        except Exception as e:
-            self.log_test("Withdraw Referral - Minimum Amount", False, f"Request failed: {str(e)}")
-        
-        # Test invalid withdrawal type
-        invalid_withdraw_data = {
-            "type": "invalid",
-            "amount": 50
-        }
-        
-        try:
-            response = self.session.post(f"{self.base_url}/withdraw", json=invalid_withdraw_data)
-            
-            if response.status_code == 400:
-                data = response.json()
-                if 'error' in data and 'Invalid withdrawal type' in data['error']:
-                    self.log_test("Withdraw - Invalid Type", True, "Correctly rejected invalid withdrawal type", data)
-                else:
-                    self.log_test("Withdraw - Invalid Type", False, "Wrong error message", data)
-            else:
-                self.log_test("Withdraw - Invalid Type", False, f"Expected 400, got {response.status_code}", response.json())
-                
-        except Exception as e:
-            self.log_test("Withdraw - Invalid Type", False, f"Request failed: {str(e)}")
+            self.log_test("Withdraw - Setup", False, f"Request failed: {str(e)}")
     
     def test_withdrawals_live_data(self):
         """Test getting mock live withdrawal data"""
