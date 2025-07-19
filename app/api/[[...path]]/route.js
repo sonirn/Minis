@@ -2,29 +2,6 @@ import { NextResponse } from 'next/server'
 import { supabase } from '../../../lib/supabase'
 import { v4 as uuidv4 } from 'uuid'
 
-// Import enhanced modules with fallback
-let EnhancedTRXVerifier = null
-let dbInitializer = null
-let trxVerifier = null
-
-// Try to import enhanced modules
-try {
-  const enhancedTrxModule = require('../../../lib/enhanced-trx-verifier')
-  EnhancedTRXVerifier = enhancedTrxModule.default || enhancedTrxModule.EnhancedTRXVerifier
-  if (EnhancedTRXVerifier) {
-    trxVerifier = new EnhancedTRXVerifier()
-  }
-} catch (error) {
-  console.error('Enhanced TRX Verifier not available:', error.message)
-}
-
-try {
-  const dbModule = require('../../../lib/database-initializer')
-  dbInitializer = dbModule.default
-} catch (error) {
-  console.error('Database initializer not available:', error.message)
-}
-
 function handleCORS(response) {
   response.headers.set('Access-Control-Allow-Origin', '*')
   response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
