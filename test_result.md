@@ -102,7 +102,7 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Test all the backend API endpoints for the TRX mining node website. Focus on authentication endpoints, mining node endpoints, user profile endpoints, referral system endpoints, withdrawal endpoints, and live data endpoints."
+user_problem_statement: "Enhanced TRX mining platform with real TRX verification using Trongrid API, improved security preventing duplicate transaction hash usage, better performance with PostgreSQL indexes and triggers, and automatic updates with trigger functions for timestamp management."
 
 backend:
   - task: "Authentication - User Signup"
