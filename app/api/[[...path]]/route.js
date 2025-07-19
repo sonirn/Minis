@@ -12,8 +12,70 @@ function handleCORS(response) {
   return response
 }
 
-// Enhanced referral processing function
-async function processReferralReward(userId) {
+// Enhanced signup referral processing
+async function processSignupReferral(userId, referralCode) {
+  try {
+    console.log(`Processing signup referral for user: ${userId}, code: ${referralCode}`)
+    
+    const { data: referrer, error: referrerError } = await supabase
+      .from('users')
+      .select('id, username, total_referrals')
+      .eq('referral_code', referralCode)
+      .single()
+
+    if (referrerError || !referrer) {
+      console.log(`Referral code not found: ${referralCode}`)
+      return
+    }
+
+    console.log(`Found referrer: ${referrer.username} (${referrer.id})`)
+
+    // Check if this referral already exists
+    const { data: existingReferral } = await supabase
+      .from('referrals')
+      .select('id')
+      .eq('referrer_id', referrer.id)
+      .eq('referred_id', userId)
+      .single()
+
+    if (existingReferral) {
+      console.log(`Referral already exists: ${existingReferral.id}`)
+      return
+    }
+
+    // Create referral record with enhanced tracking
+    const { error: referralError } = await supabase
+      .from('referrals')
+      .insert([{
+        id: uuidv4(),
+        referrer_id: referrer.id,
+        referred_id: userId,
+        referral_code: referralCode,
+        is_valid: false,
+        reward_paid: false,
+        reward_amount: 50.0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }])
+
+    if (referralError) {
+      console.error('Referral creation error:', referralError)
+    } else {
+      // Update referrer's total referrals count
+      await supabase
+        .from('users')
+        .update({ 
+          total_referrals: referrer.total_referrals + 1,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', referrer.id)
+      
+      console.log(`Referral created successfully for referrer: ${referrer.id}`)
+    }
+  } catch (error) {
+    console.error('Signup referral processing error:', error)
+  }
+}
   try {
     console.log(`Processing referral reward for user: ${userId}`)
     
