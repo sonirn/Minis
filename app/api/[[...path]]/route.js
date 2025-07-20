@@ -497,6 +497,7 @@ export async function POST(request) {
 
       if (insertError) {
         console.error('User creation error:', insertError)
+        console.error('Full error details:', JSON.stringify(insertError, null, 2))
         
         if (insertError.message && insertError.message.includes('does not exist')) {
           return enhanceSecurityHeaders(handleCORS(NextResponse.json({ 
@@ -505,7 +506,8 @@ export async function POST(request) {
         }
         
         return enhanceSecurityHeaders(handleCORS(NextResponse.json({ 
-          error: 'Failed to create user account' 
+          error: 'Failed to create user account',
+          details: insertError.message || 'Unknown database error'
         }, { status: 500 })))
       }
 
