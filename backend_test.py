@@ -330,7 +330,7 @@ class TRXMiningTester:
         try:
             purchase_data = {
                 "nodeId": "node1",
-                "transactionHash": "a1b2c3d4e5f6789012345678901234567890123456789012345678901234567890",
+                "transactionHash": "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
                 "userId": self.test_user_id
             }
             
