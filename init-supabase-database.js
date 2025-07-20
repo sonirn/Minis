@@ -7,10 +7,10 @@
 const { Client } = require('pg');
 require('dotenv').config();
 
-// Database connection configuration
+// Database connection configuration  
 const connectionConfig = {
   connectionString: process.env.POSTGRES_URL_NON_POOLING || process.env.POSTGRES_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  ssl: { rejectUnauthorized: false }
 };
 
 console.log('🚀 Starting automated Supabase database setup...');
