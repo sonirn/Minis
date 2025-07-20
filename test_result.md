@@ -266,6 +266,9 @@ backend:
       - working: true
         agent: "testing"
         comment: "GET /api/user/profile endpoint tested successfully. Returns complete user profile including mineBalance, referralBalance, referralCode, and other user data. Creates initial user with signup bonus if not exists."
+      - working: true
+        agent: "testing"
+        comment: "CONFIRMED WORKING: User profile retrieval fully operational with database integration. Successfully tested profile data persistence, balance tracking (25 TRX signup bonus), referral code generation, and all user data fields. Database operations working perfectly."
 
   - task: "Referral System - Get User Referrals"
     implemented: true
