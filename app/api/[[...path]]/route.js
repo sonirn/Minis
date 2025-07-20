@@ -483,8 +483,6 @@ export async function POST(request) {
         referral_code: userReferralCode,
         has_active_mining: false,
         has_bought_node4: false,
-        is_active: true,
-        last_login_at: new Date().toISOString(),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }
