@@ -182,6 +182,9 @@ backend:
       - working: false
         agent: "testing"
         comment: "Minor: Enhanced signup validation working correctly (rejects invalid JSON, missing fields), but user creation failing with database errors. Core validation logic is functional but database connection issues prevent actual user creation."
+      - working: false
+        agent: "testing"
+        comment: "CRITICAL ISSUE IDENTIFIED: Database tables do not exist in Supabase. Direct Supabase query returns 'relation \"public.users\" does not exist'. The supabase-schema.sql file exists but has not been applied to the actual Supabase database instance. This is the root cause of all user signup failures. Backend validation logic is working correctly, but database operations fail because tables are missing."
 
   - task: "Authentication - User Signin"
     implemented: true
