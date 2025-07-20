@@ -23,8 +23,8 @@ load_dotenv()
 EXTERNAL_BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL', 'https://ccab35d4-217b-4823-b68b-f6a027e54b91.preview.emergentagent.com') + '/api'
 INTERNAL_BASE_URL = "http://localhost:3000/api"
 
-# Use external URL for testing routing issues
-BASE_URL = EXTERNAL_BASE_URL
+# Use internal URL for testing backend functionality
+BASE_URL = INTERNAL_BASE_URL
 
 class EnhancedTRXMiningTester:
     def __init__(self):
