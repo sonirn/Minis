@@ -27,8 +27,8 @@ import {
 
 // API utility function to handle external routing issue
 const getApiUrl = (endpoint) => {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || ''
-  return `${baseUrl}/api${endpoint}`
+  // Since external API routing is broken, use relative URLs so Next.js handles them internally
+  return `/api${endpoint}`
 }
 
 export default function App() {
