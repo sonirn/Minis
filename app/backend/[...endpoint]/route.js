@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
-import { supabase } from '../../../../lib/supabase'
 import { v4 as uuidv4 } from 'uuid'
 
 // Alternative backend API to bypass /api routing issues
+// Using simplified implementation without Supabase for now to test the routing fix
 
 function handleCORS(response) {
   response.headers.set('Access-Control-Allow-Origin', '*')
