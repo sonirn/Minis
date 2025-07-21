@@ -130,7 +130,7 @@ export default function App() {
     if (!user) return
     
     try {
-      const response = await fetch('/api/user/nodes', {
+      const response = await fetch(getApiUrl('/user/nodes'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: user.id })
@@ -149,7 +149,7 @@ export default function App() {
     if (!user) return
     
     try {
-      const response = await fetch('/api/user/referrals', {
+      const response = await fetch(getApiUrl('/user/referrals'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: user.id })
@@ -166,7 +166,7 @@ export default function App() {
 
   const fetchLiveWithdrawals = async () => {
     try {
-      const response = await fetch('/api/withdrawals')
+      const response = await fetch(getApiUrl('/withdrawals'))
       if (response.ok) {
         const data = await response.json()
         setLiveWithdrawals(data.withdrawals)
