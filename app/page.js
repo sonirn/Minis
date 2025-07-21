@@ -27,42 +27,30 @@ import {
 
 // Enhanced API utility function to handle external routing issues
 const apiRequest = async (endpoint, options = {}) => {
-  const urls = [
-    `/api${endpoint}`, // Try direct API route first
-    `/api/proxy${endpoint}`, // Use internal proxy as fallback
-  ]
+  // Use the working alternative backend endpoint
+  const url = `/backend${endpoint}`
   
-  let lastError = null
-  
-  for (const url of urls) {
-    try {
-      console.log(`Attempting API call to: ${url}`)
-      const response = await fetch(url, {
-        ...options,
-        headers: {
-          'Content-Type': 'application/json',
-          ...options.headers
-        }
-      })
-      
-      if (response.ok) {
-        console.log(`✅ API call successful: ${url}`)
-        return response
-      } else if (response.status !== 502) {
-        // If we get a non-502 error, it means the endpoint was reached
-        console.log(`⚠️ API call reached but failed: ${url} - ${response.status}`)
-        return response
-      } else {
-        console.log(`❌ 502 error for: ${url}, trying next option`)
-        lastError = new Error(`502 Bad Gateway for ${url}`)
+  try {
+    console.log(`✅ Using alternative backend: ${url}`)
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
       }
-    } catch (error) {
-      console.log(`❌ Network error for: ${url} - ${error.message}`)
-      lastError = error
+    })
+    
+    if (response.ok) {
+      console.log(`✅ API call successful: ${url}`)
+      return response
+    } else {
+      console.log(`⚠️ API call failed: ${url} - ${response.status}`)
+      return response
     }
+  } catch (error) {
+    console.log(`❌ Network error for: ${url} - ${error.message}`)
+    throw error
   }
-  
-  throw lastError || new Error('All API endpoints failed')
 }
 
 export default function App() {
