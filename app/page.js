@@ -132,7 +132,7 @@ export default function App() {
 
   const fetchMiningNodes = async () => {
     try {
-      const response = await fetch(getApiUrl('/nodes'))
+      const response = await apiRequest('/nodes')
       if (response.ok) {
         const data = await response.json()
         setMiningNodes(data.nodes)
