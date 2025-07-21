@@ -249,7 +249,7 @@ export default function App() {
     }
 
     try {
-      const response = await fetch('/api/withdraw', {
+      const response = await fetch(getApiUrl('/withdraw'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
