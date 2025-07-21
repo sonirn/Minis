@@ -182,7 +182,7 @@ export default function App() {
     setAuthError('')
     
     try {
-      const endpoint = authMode === 'signup' ? '/api/auth/signup' : '/api/auth/signin'
+      const endpoint = authMode === 'signup' ? getApiUrl('/auth/signup') : getApiUrl('/auth/signin')
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
