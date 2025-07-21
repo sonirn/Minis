@@ -111,7 +111,7 @@ export default function App() {
     if (!user) return
     
     try {
-      const response = await fetch('/api/user/profile', {
+      const response = await fetch(getApiUrl('/user/profile'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: user.id })
