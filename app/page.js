@@ -28,9 +28,8 @@ import {
 // Enhanced API utility function to handle external routing issues
 const apiRequest = async (endpoint, options = {}) => {
   const urls = [
-    `/api${endpoint}`, // Try relative URL first (works internally)
-    `${process.env.NEXT_PUBLIC_BASE_URL}/api${endpoint}`, // Try absolute external URL
-    `http://localhost:3000/api${endpoint}` // Fallback to localhost (for development)
+    `/api${endpoint}`, // Try direct API route first
+    `/api/proxy${endpoint}`, // Use internal proxy as fallback
   ]
   
   let lastError = null
@@ -54,7 +53,7 @@ const apiRequest = async (endpoint, options = {}) => {
         console.log(`⚠️ API call reached but failed: ${url} - ${response.status}`)
         return response
       } else {
-        console.log(`❌ 502 error for: ${url}`)
+        console.log(`❌ 502 error for: ${url}, trying next option`)
         lastError = new Error(`502 Bad Gateway for ${url}`)
       }
     } catch (error) {
