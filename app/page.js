@@ -25,10 +25,45 @@ import {
   LogOut
 } from 'lucide-react'
 
-// API utility function to handle external routing issue
-const getApiUrl = (endpoint) => {
-  // Since external API routing is broken, use relative URLs so Next.js handles them internally
-  return `/api${endpoint}`
+// Enhanced API utility function to handle external routing issues
+const apiRequest = async (endpoint, options = {}) => {
+  const urls = [
+    `/api${endpoint}`, // Try relative URL first (works internally)
+    `${process.env.NEXT_PUBLIC_BASE_URL}/api${endpoint}`, // Try absolute external URL
+    `http://localhost:3000/api${endpoint}` // Fallback to localhost (for development)
+  ]
+  
+  let lastError = null
+  
+  for (const url of urls) {
+    try {
+      console.log(`Attempting API call to: ${url}`)
+      const response = await fetch(url, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers
+        }
+      })
+      
+      if (response.ok) {
+        console.log(`✅ API call successful: ${url}`)
+        return response
+      } else if (response.status !== 502) {
+        // If we get a non-502 error, it means the endpoint was reached
+        console.log(`⚠️ API call reached but failed: ${url} - ${response.status}`)
+        return response
+      } else {
+        console.log(`❌ 502 error for: ${url}`)
+        lastError = new Error(`502 Bad Gateway for ${url}`)
+      }
+    } catch (error) {
+      console.log(`❌ Network error for: ${url} - ${error.message}`)
+      lastError = error
+    }
+  }
+  
+  throw lastError || new Error('All API endpoints failed')
 }
 
 export default function App() {
