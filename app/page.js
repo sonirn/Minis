@@ -246,9 +246,8 @@ export default function App() {
     }
 
     try {
-      const response = await fetch(getApiUrl('/nodes/purchase'), {
+      const response = await apiRequest('/nodes/purchase', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           nodeId: selectedNode.id,
           transactionHash,
@@ -280,9 +279,8 @@ export default function App() {
     }
 
     try {
-      const response = await fetch(getApiUrl('/withdraw'), {
+      const response = await apiRequest('/withdraw', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: withdrawType,
           amount: parseFloat(withdrawAmount),
