@@ -25,6 +25,12 @@ import {
   LogOut
 } from 'lucide-react'
 
+// API utility function to handle external routing issue
+const getApiUrl = (endpoint) => {
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || ''
+  return `${baseUrl}/api${endpoint}`
+}
+
 export default function App() {
   const [currentPage, setCurrentPage] = useState('home')
   const [user, setUser] = useState(null)
