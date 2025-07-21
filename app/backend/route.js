@@ -231,11 +231,11 @@ function validateInput(data, requiredFields) {
 export async function GET(request) {
   try {
     const url = new URL(request.url)
-    const pathname = url.pathname.replace('/backend', '')
+    const pathname = url.pathname.replace('/backend', '') || '/'
 
-    console.log(`GET request: ${pathname}`)
+    console.log(`Backend GET request: ${pathname}`)
 
-    if (pathname === '/nodes') {
+    if (pathname === '/nodes' || pathname === '/') {
       return handleCORS(NextResponse.json({ nodes: MINING_NODES }))
     }
     
