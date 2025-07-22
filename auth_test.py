@@ -15,7 +15,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Use external URL from environment
-NEXT_PUBLIC_BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL', 'https://a3bff178-bb16-49eb-a1eb-c7e62594575a.preview.emergentagent.com')
+NEXT_PUBLIC_BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL', 'https://46b0d0f6-3102-4621-8226-781fb8c5bf4f.preview.emergentagent.com')
 BASE_URL = f"{NEXT_PUBLIC_BASE_URL}/api"
 
 class AuthTester:

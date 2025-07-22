@@ -12,7 +12,7 @@ from datetime import datetime
 
 # Configuration
 INTERNAL_BASE_URL = "http://localhost:3000/api"
-EXTERNAL_BASE_URL = "https://a3bff178-bb16-49eb-a1eb-c7e62594575a.preview.emergentagent.com/api"
+EXTERNAL_BASE_URL = "https://46b0d0f6-3102-4621-8226-781fb8c5bf4f.preview.emergentagent.com/api"
 HEADERS = {
     'Content-Type': 'application/json',
     'User-Agent': 'TRX-Mining-E2E-Test/1.0'
