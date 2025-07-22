@@ -889,86 +889,145 @@ export default function App() {
         </div>
       </div>
 
-      {/* Mining Nodes */}
-      <div className="space-y-8">
-        <div className="text-center">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">Mining Plans</h2>
-          <p className="text-gray-600 max-w-2xl mx-auto">
-            Choose the perfect mining plan for your goals. All plans include 24/7 monitoring, 
-            automatic payouts, and enterprise-grade security.
-          </p>
-        </div>
-        
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {miningNodes.map((node) => {
-            const userNode = userNodes.find(un => un.nodeId === node.id && un.status === 'running')
-            const isRunning = !!userNode
-            const isPopular = node.id === 'node3'
-            
-            return (
-              <Card key={node.id} className={`relative ${isRunning ? 'ring-2 ring-blue-600' : ''} ${isPopular ? 'ring-2 ring-orange-500' : ''}`}>
-                {isPopular && (
-                  <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                    <Badge className="bg-orange-500 text-white">Most Popular</Badge>
-                  </div>
-                )}
-                
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
-                    <div>
-                      <div className="text-lg font-bold text-gray-900">{node.name}</div>
-                      <div className="text-sm text-gray-600">{node.storage}</div>
-                    </div>
-                    {isRunning && <Badge className="bg-green-500 text-white">Active</Badge>}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600">Price</span>
-                      <span className="text-2xl font-bold text-gray-900">{node.price} TRX</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600">Mining</span>
-                      <span className="font-semibold text-green-600">{node.mining} TRX</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600">Duration</span>
-                      <span className="font-semibold text-gray-900">{node.duration} days</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600">Daily Income</span>
-                      <span className="font-semibold text-blue-600">{Math.round(node.mining / node.duration)} TRX</span>
-                    </div>
-                  </div>
-                  
-                  {isRunning && (
-                    <div className="space-y-2 pt-4 border-t">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Progress</span>
-                        <span className="font-semibold">{Math.round(userNode.progress)}%</span>
-                      </div>
-                      <Progress value={userNode.progress} className="h-2" />
-                      <div className="text-xs text-gray-500">
-                        Ends: {new Date(userNode.endDate).toLocaleDateString()}
+      {/* Mining Hardware Plans */}
+      <div className="py-16">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">Choose Your Mining Hardware</h2>
+            <p className="text-lg text-gray-600 max-w-3xl mx-auto">
+              Select from our range of professional mining hardware. All equipment is maintained in our secure facility
+              and comes with guaranteed uptime and daily payouts.
+            </p>
+          </div>
+          
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {miningNodes.map((node, nodeIndex) => {
+              const userNode = userNodes.find(un => un.nodeId === node.id && un.status === 'running')
+              const isRunning = !!userNode
+              const isPopular = node.id === 'node3'
+              
+              // Node images mapping
+              const nodeImages = [
+                'https://images.unsplash.com/photo-1612203619720-0c6d0874e48e?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Nzh8MHwxfHNlYXJjaHwxfHxtaW5pbmclMjBlcXVpcG1lbnR8ZW58MHx8fGJsYWNrfDE3NTMxODU4OTl8MA&ixlib=rb-4.1.0&q=85',
+                'https://images.unsplash.com/photo-1591238372358-dbbb7a59f22c?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1ODF8MHwxfHNlYXJjaHwzfHxzZXJ2ZXIlMjBoYXJkd2FyZXxlbnwwfHx8YmxhY2t8MTc1MzE4NTg4M3ww&ixlib=rb-4.1.0&q=85',
+                'https://images.unsplash.com/photo-1591238372408-8b98667c0460?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1ODF8MHwxfHNlYXJjaHwyfHxzZXJ2ZXIlMjBoYXJkd2FyZXxlbnwwfHx8YmxhY2t8MTc1MzE4NTg4M3ww&ixlib=rb-4.1.0&q=85',
+                'https://images.unsplash.com/photo-1542744989-2a681859d344?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1ODF8MHwxfHNlYXJjaHwxfHxzZXJ2ZXIlMjBoYXJkd2FyZXxlbnwwfHx8YmxhY2t8MTc1MzE4NTg4M3ww&ixlib=rb-4.1.0&q=85'
+              ]
+              
+              return (
+                <div key={node.id} className={`relative bg-white border-2 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow ${isRunning ? 'border-green-500 bg-green-50' : isPopular ? 'border-orange-500' : 'border-gray-200'}`}>
+                  {isPopular && (
+                    <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 z-10">
+                      <div className="bg-orange-500 text-white px-3 py-1 rounded-full text-xs font-medium">
+                        MOST POPULAR
                       </div>
                     </div>
                   )}
                   
-                  <Button
-                    className={`w-full ${isPopular ? 'bg-orange-500 hover:bg-orange-600' : 'bg-blue-600 hover:bg-blue-700'}`}
-                    onClick={() => {
-                      setSelectedNode(node)
-                      setShowPayment(true)
-                    }}
-                    disabled={isRunning}
-                  >
-                    {isRunning ? 'Mining Active' : `Start Mining - ${node.price} TRX`}
-                  </Button>
-                </CardContent>
-              </Card>
-            )
-          })}
+                  {isRunning && (
+                    <div className="absolute top-3 right-3 z-10">
+                      <div className="bg-green-500 text-white px-2 py-1 rounded text-xs font-medium flex items-center gap-1">
+                        <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                        ACTIVE
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="aspect-video bg-gray-100 overflow-hidden">
+                    <img 
+                      src={nodeImages[nodeIndex]}
+                      alt={`${node.name} Mining Hardware`}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+
+                  <div className="p-6">
+                    <div className="mb-4">
+                      <h3 className="text-xl font-bold text-gray-900 mb-1">{node.name}</h3>
+                      <p className="text-gray-500 text-sm">Storage Capacity: {node.storage}</p>
+                    </div>
+
+                    <div className="space-y-3 mb-6">
+                      <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                        <span className="text-gray-600 text-sm">Hardware Cost</span>
+                        <span className="text-xl font-bold text-gray-900">{node.price} TRX</span>
+                      </div>
+                      <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                        <span className="text-gray-600 text-sm">Total Mining</span>
+                        <span className="font-semibold text-green-600">{node.mining} TRX</span>
+                      </div>
+                      <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                        <span className="text-gray-600 text-sm">Duration</span>
+                        <span className="font-semibold text-gray-900">{node.duration} days</span>
+                      </div>
+                      <div className="flex justify-between items-center py-2">
+                        <span className="text-gray-600 text-sm">Daily Earnings</span>
+                        <span className="font-semibold text-blue-600">{Math.round(node.mining / node.duration * 10) / 10} TRX/day</span>
+                      </div>
+                    </div>
+                    
+                    {isRunning && (
+                      <div className="mb-6 p-4 bg-green-50 rounded-lg border border-green-200">
+                        <div className="flex justify-between text-sm mb-2">
+                          <span className="text-green-700 font-medium">Mining Progress</span>
+                          <span className="font-semibold text-green-800">{Math.round(userNode.progress)}%</span>
+                        </div>
+                        <div className="w-full bg-green-200 rounded-full h-3">
+                          <div 
+                            className="bg-green-500 h-3 rounded-full transition-all duration-500"
+                            style={{ width: `${userNode.progress}%` }}
+                          ></div>
+                        </div>
+                        <div className="text-xs text-green-600 mt-2">
+                          Completion: {new Date(userNode.endDate).toLocaleDateString()}
+                        </div>
+                      </div>
+                    )}
+                    
+                    <button
+                      className={`w-full py-3 px-4 rounded-lg font-medium transition-colors ${
+                        isRunning 
+                          ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
+                          : isPopular 
+                            ? 'bg-orange-500 hover:bg-orange-600 text-white' 
+                            : 'bg-blue-600 hover:bg-blue-700 text-white'
+                      }`}
+                      onClick={() => {
+                        if (!isRunning) {
+                          setSelectedNode(node)
+                          setShowPayment(true)
+                        }
+                      }}
+                      disabled={isRunning}
+                    >
+                      {isRunning ? 'Currently Mining' : `Deploy Hardware - ${node.price} TRX`}
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          <div className="mt-12 text-center">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 max-w-4xl mx-auto">
+              <h3 className="text-lg font-semibold text-blue-900 mb-2">Why Choose Our Mining Hardware?</h3>
+              <p className="text-blue-800 mb-4">All mining hardware is hosted in our climate-controlled facility in Iceland, powered by renewable geothermal energy.</p>
+              <div className="grid md:grid-cols-3 gap-4 text-sm">
+                <div className="flex items-center gap-2 text-blue-700">
+                  <CheckCircle className="h-4 w-4 text-blue-500" />
+                  Professional installation & setup
+                </div>
+                <div className="flex items-center gap-2 text-blue-700">
+                  <CheckCircle className="h-4 w-4 text-blue-500" />
+                  24/7 monitoring & maintenance
+                </div>
+                <div className="flex items-center gap-2 text-blue-700">
+                  <CheckCircle className="h-4 w-4 text-blue-500" />
+                  Daily automated payouts
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
