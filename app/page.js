@@ -800,67 +800,93 @@ export default function App() {
         </div>
       </div>
 
-      {/* Live Withdrawals */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUp className="h-5 w-5 text-green-600" />
-            Recent Withdrawals
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+      {/* Recent Activity & Stats */}
+      <div className="bg-white border border-gray-200 shadow-sm">
+        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+          <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+            <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+            Live Mining Activity
+          </h2>
+        </div>
+        <div className="p-6">
           <div className="space-y-3">
             {liveWithdrawals.map((withdrawal, index) => (
-              <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                    <User className="h-4 w-4 text-white" />
+              <div key={index} className="flex justify-between items-center py-3 border-b border-gray-100 last:border-b-0">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded text-white flex items-center justify-center font-medium">
+                    {withdrawal.username.charAt(0)}
                   </div>
-                  <span className="font-medium text-gray-900">{withdrawal.username}</span>
+                  <div>
+                    <div className="font-medium text-gray-900">{withdrawal.username}</div>
+                    <div className="text-sm text-gray-500">
+                      {withdrawal.type === 'mining' ? 'Mining Reward' : 'Referral Bonus'}
+                    </div>
+                  </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-green-600 font-semibold">{withdrawal.amount} TRX</div>
-                  <div className="text-gray-500 text-sm">
-                    {new Date(withdrawal.timestamp).toLocaleTimeString()}
+                  <div className="text-lg font-bold text-green-600">+{withdrawal.amount} TRX</div>
+                  <div className="text-xs text-gray-500">
+                    {new Date(withdrawal.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                   </div>
                 </div>
               </div>
             ))}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      {/* Features Grid */}
-      <div className="grid md:grid-cols-3 gap-8">
-        <Card>
-          <CardContent className="p-6 text-center">
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-              <Server className="h-6 w-6 text-blue-600" />
+      {/* Mining Infrastructure Section */}
+      <div className="bg-gray-50 py-16">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">Our Mining Infrastructure</h2>
+            <p className="text-lg text-gray-600 max-w-3xl mx-auto">
+              State-of-the-art TRON mining facility located in Iceland, powered by renewable energy.
+              Our mining rigs operate 24/7 with professional maintenance and monitoring.
+            </p>
+          </div>
+          
+          <div className="grid md:grid-cols-2 gap-8 items-center">
+            <div>
+              <img 
+                src="https://images.unsplash.com/photo-1639815188546-c43c240ff4df?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDN8MHwxfHNlYXJjaHwzfHxkYXRhJTIwY2VudGVyfGVufDB8fHx8Ymx1ZXwxNzUzMTg1ODQyfDA&ixlib=rb-4.1.0&q=85"
+                alt="Blockchain Mining Infrastructure"
+                className="w-full rounded-lg shadow-lg"
+              />
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">Enterprise Mining</h3>
-            <p className="text-gray-600">Industrial-grade mining infrastructure with guaranteed uptime and maximum efficiency.</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6 text-center">
-            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-              <Shield className="h-6 w-6 text-green-600" />
+            <div className="space-y-6">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <Server className="h-6 w-6 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">Enterprise Hardware</h3>
+                  <p className="text-gray-600">Custom-built mining rigs with latest ASIC technology optimized for TRON network mining.</p>
+                </div>
+              </div>
+              
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <Shield className="h-6 w-6 text-green-600" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">Secure Operations</h3>
+                  <p className="text-gray-600">Bank-level security with 24/7 monitoring, redundant systems, and insurance coverage.</p>
+                </div>
+              </div>
+              
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <TrendingUp className="h-6 w-6 text-orange-600" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">Proven Results</h3>
+                  <p className="text-gray-600">Over ₹2.5M TRX mined for our clients with consistent daily payouts since 2021.</p>
+                </div>
+              </div>
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">Fully Licensed</h3>
-            <p className="text-gray-600">Regulated and compliant mining operations with full legal protection for your investments.</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6 text-center">
-            <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-              <Coins className="h-6 w-6 text-orange-600" />
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">Proven Returns</h3>
-            <p className="text-gray-600">Consistent mining rewards with transparent payouts and detailed performance tracking.</p>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
 
       {/* Mining Nodes */}
