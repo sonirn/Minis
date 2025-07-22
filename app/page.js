@@ -764,26 +764,39 @@ export default function App() {
 
   // Homepage
   const HomePage = () => (
-    <div className="space-y-12">
-      {/* Hero Section */}
-      <div className="text-center space-y-6 py-12">
-        <h1 className="text-4xl md:text-6xl font-bold text-gray-900">
-          Mine<span className="text-blue-600">TRX</span>With
-        </h1>
-        <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-          Professional TRX mining platform with enterprise-grade infrastructure. 
-          Start mining today and build your passive income stream.
-        </p>
-        <div className="flex justify-center gap-4 pt-4">
-          <Badge variant="outline" className="text-green-600 border-green-600">
-            ✓ 99.9% Uptime
-          </Badge>
-          <Badge variant="outline" className="text-blue-600 border-blue-600">
-            ✓ Licensed & Regulated
-          </Badge>
-          <Badge variant="outline" className="text-orange-600 border-orange-600">
-            ✓ 24/7 Support
-          </Badge>
+    <div className="space-y-16">
+      {/* Hero Section with Mining Farm Image */}
+      <div className="relative bg-gray-900 text-white overflow-hidden">
+        <div 
+          className="absolute inset-0 bg-cover bg-center opacity-30"
+          style={{
+            backgroundImage: `url('https://images.unsplash.com/photo-1524037755327-dc2def03712a?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDJ8MHwxfHNlYXJjaHwxfHxtaW5pbmd8ZW58MHx8fGJsdWV8MTc1MzE4NTg1MHww&ixlib=rb-4.1.0&q=85')`
+          }}
+        ></div>
+        <div className="relative z-10 py-20 px-6">
+          <div className="max-w-4xl mx-auto text-center">
+            <h1 className="text-5xl md:text-7xl font-bold mb-6">
+              TRX Mining <span className="text-blue-400">Operations</span>
+            </h1>
+            <p className="text-xl md:text-2xl mb-8 text-gray-300 leading-relaxed">
+              Industrial-scale TRON mining facility with over 5,000 active mining rigs.
+              Join our community of miners earning passive income with verified hardware.
+            </p>
+            <div className="grid md:grid-cols-3 gap-6 mt-12">
+              <div className="bg-black/20 backdrop-blur-sm p-6 rounded-lg border border-gray-600">
+                <div className="text-3xl font-bold text-green-400">₹2.5M+</div>
+                <div className="text-gray-300">Total Mined (TRX)</div>
+              </div>
+              <div className="bg-black/20 backdrop-blur-sm p-6 rounded-lg border border-gray-600">
+                <div className="text-3xl font-bold text-blue-400">8,500+</div>
+                <div className="text-gray-300">Active Miners</div>
+              </div>
+              <div className="bg-black/20 backdrop-blur-sm p-6 rounded-lg border border-gray-600">
+                <div className="text-3xl font-bold text-orange-400">99.2%</div>
+                <div className="text-gray-300">Uptime Record</div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
