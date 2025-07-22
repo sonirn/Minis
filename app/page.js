@@ -1031,61 +1031,122 @@ export default function App() {
         </div>
       </div>
 
-      {/* Payment Modal */}
+      {/* Hardware Deployment Modal */}
       {showPayment && selectedNode && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <Card className="w-full max-w-md">
-            <CardHeader>
-              <CardTitle>Purchase {selectedNode.name}</CardTitle>
-              <p className="text-gray-600">Send exactly {selectedNode.price} TRX to activate your mining node</p>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Send {selectedNode.price} TRX to:</label>
-                <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-                  <code className="text-sm font-mono flex-1 break-all">{TRX_RECEIVE_ADDRESS}</code>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => copyToClipboard(TRX_RECEIVE_ADDRESS)}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
+          <div className="bg-white rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4">
+              <h2 className="text-xl font-bold text-gray-900">Deploy {selectedNode.name}</h2>
+              <p className="text-gray-600 text-sm mt-1">Complete payment to activate your mining hardware</p>
+            </div>
+            
+            <div className="p-6 space-y-6">
+              {/* Hardware Summary */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <div className="flex justify-between items-center mb-3">
+                  <span className="font-medium text-gray-900">Hardware Package</span>
+                  <span className="text-lg font-bold text-gray-900">{selectedNode.price} TRX</span>
+                </div>
+                <div className="text-sm text-gray-600 space-y-1">
+                  <div className="flex justify-between">
+                    <span>Storage Capacity:</span>
+                    <span>{selectedNode.storage}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Expected Mining:</span>
+                    <span className="text-green-600">{selectedNode.mining} TRX</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Mining Duration:</span>
+                    <span>{selectedNode.duration} days</span>
+                  </div>
+                  <div className="flex justify-between font-medium">
+                    <span>Daily Earnings:</span>
+                    <span className="text-blue-600">{Math.round(selectedNode.mining / selectedNode.duration * 10) / 10} TRX/day</span>
+                  </div>
                 </div>
               </div>
-              
-              <div>
-                <label className="text-sm font-medium text-gray-700 mb-2 block">Transaction Hash</label>
-                <Input
-                  type="text"
-                  placeholder="Enter transaction hash after payment"
-                  value={transactionHash}
-                  onChange={(e) => setTransactionHash(e.target.value)}
-                />
+
+              {/* Payment Instructions */}
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Step 1: Send exactly {selectedNode.price} TRX to:
+                  </label>
+                  <div className="flex items-center gap-2 p-3 bg-gray-100 rounded-lg border">
+                    <code className="text-sm font-mono flex-1 break-all text-gray-800">{TRX_RECEIVE_ADDRESS}</code>
+                    <button
+                      type="button"
+                      className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                      onClick={() => copyToClipboard(TRX_RECEIVE_ADDRESS)}
+                    >
+                      Copy
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    ⚠️ Send exactly {selectedNode.price} TRX - incorrect amounts will not be processed
+                  </p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Step 2: Enter your transaction hash:
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Paste transaction hash from your wallet"
+                    value={transactionHash}
+                    onChange={(e) => setTransactionHash(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Your hardware will be deployed within 5 minutes of payment confirmation
+                  </p>
+                </div>
               </div>
-              
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4 border-t border-gray-200">
+                <button
+                  type="button"
                   onClick={() => {
                     setShowPayment(false)
                     setSelectedNode(null)
                     setTransactionHash('')
                   }}
-                  className="flex-1"
+                  className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
                 >
                   Cancel
-                </Button>
-                <Button
+                </button>
+                <button
+                  type="button"
                   onClick={handlePurchaseNode}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700"
-                  disabled={!transactionHash}
+                  disabled={!transactionHash.trim()}
+                  className={`flex-1 px-4 py-2 rounded-lg transition-colors ${
+                    transactionHash.trim()
+                      ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  }`}
                 >
-                  Confirm Payment
-                </Button>
+                  Verify & Deploy
+                </button>
               </div>
-            </CardContent>
-          </Card>
+
+              {/* Security Notice */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <Shield className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm">
+                    <p className="font-medium text-blue-900 mb-1">Secure Payment Processing</p>
+                    <p className="text-blue-800">
+                      Your payment is verified on the TRON blockchain. Hardware deployment begins
+                      automatically upon confirmation. All mining rewards are paid daily to your account.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
