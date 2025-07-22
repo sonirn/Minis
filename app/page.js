@@ -193,6 +193,7 @@ export default function App() {
       if (response.ok) {
         const data = await response.json()
         setMiningNodes(data.nodes)
+        console.log('✅ Mining nodes data loaded:', data.nodes.length, 'nodes')
       }
     } catch (error) {
       console.error('Fetch nodes error:', error)
