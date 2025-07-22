@@ -25,13 +25,12 @@ import {
   LogOut
 } from 'lucide-react'
 
-// Enhanced API utility function to handle external routing issues
+// Simple API utility function - just use direct API calls
 const apiRequest = async (endpoint, options = {}) => {
-  // Use the working alternative backend endpoint
-  const url = `/backend${endpoint}`
+  const url = `/api${endpoint}`
   
   try {
-    console.log(`✅ Using alternative backend: ${url}`)
+    console.log(`Making API call to: ${url}`)
     const response = await fetch(url, {
       ...options,
       headers: {
@@ -40,15 +39,10 @@ const apiRequest = async (endpoint, options = {}) => {
       }
     })
     
-    if (response.ok) {
-      console.log(`✅ API call successful: ${url}`)
-      return response
-    } else {
-      console.log(`⚠️ API call failed: ${url} - ${response.status}`)
-      return response
-    }
+    console.log(`API response: ${response.status}`)
+    return response
   } catch (error) {
-    console.log(`❌ Network error for: ${url} - ${error.message}`)
+    console.error(`API error for ${url}:`, error)
     throw error
   }
 }
