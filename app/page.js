@@ -25,13 +25,17 @@ import {
   LogOut
 } from 'lucide-react'
 
-// API utility function with complete fallback for ALL endpoints
+// API utility function with alternative endpoint for external access
 const apiRequest = async (endpoint, options = {}) => {
-  const url = `/api${endpoint}`
+  // Remove leading slash from endpoint for the new structure
+  const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint
+  
+  // Try the new alternative API endpoint first
+  const alternativeUrl = `/trx-api?path=${cleanEndpoint}`
   
   try {
-    console.log(`Making API call to: ${url}`)
-    const response = await fetch(url, {
+    console.log(`Making API call to alternative endpoint: ${alternativeUrl}`)
+    const response = await fetch(alternativeUrl, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
@@ -41,13 +45,30 @@ const apiRequest = async (endpoint, options = {}) => {
     
     console.log(`API response: ${response.status}`)
     
-    // Handle all 502 errors with appropriate fallback responses
-    if (response.status === 502 || response.status >= 500) {
-      console.log(`Using fallback for: ${endpoint} (Status: ${response.status})`)
-      return getFallbackResponse(endpoint, options)
+    // If successful, return the response
+    if (response.ok) {
+      return response
     }
     
-    return response
+    // If alternative fails, try original API endpoint
+    const originalUrl = `/api${endpoint}`
+    console.log(`Alternative failed, trying original: ${originalUrl}`)
+    
+    const originalResponse = await fetch(originalUrl, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+      }
+    })
+    
+    if (originalResponse.ok) {
+      return originalResponse
+    }
+    
+    // If both fail, use fallback
+    console.log(`Both endpoints failed, using fallback for: ${endpoint}`)
+    return getFallbackResponse(endpoint, options)
     
   } catch (error) {
     console.error(`Network error for ${endpoint}:`, error)
