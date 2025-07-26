@@ -13,7 +13,7 @@ import string
 from datetime import datetime
 
 # Configuration
-BASE_URL = "http://localhost:3000/api"
+BASE_URL = "https://f4a9632f-16dc-46ff-b6a7-a54012bf7833.preview.emergentagent.com/api"
 HEADERS = {
     'Content-Type': 'application/json',
     'User-Agent': 'TRX-Mining-Test-Client/1.0'
